@@ -77,7 +77,13 @@ function transmit_infection!(source::Agent_T, target::Agent_T, time_of_exposure:
                 foi_source *= immunity_fac_target 
 
                 # TODO: include other factors associated with transmission. 
-                p_trans = 1.0 - exp((-1.0 * foi_source * dt))
+                # NOTE: 2022 10 20 - removing dt from p_trans
+                # this is already accounted for by the contact rate for each timestep
+                # see disease parameters - calibration with dt = 0.1 means I'll have to
+                # multiply b_max by 0.1 to scale infectiousness accordingly. 
+                # old code: p_trans = 1.0 - exp((-1.0 * foi_source * dt))
+                # new code: 
+                p_trans = 1.0 - exp((-1.0 * foi_source))
 
                 #println("agent $(source.id) trying to infect agent $(target.id) with $pathogen_name with probability $p_trans, b_max = $(source.infections[pathogen_name].beta_max)")
 
@@ -126,7 +132,8 @@ function transmit_infection_AOB!(source::Agent_T, target::Agent_T, time_of_expos
                 st_IC = eff_IC_resident_resident # global 
             end 
 
-            IC_fac = 1.0 - st_IC
+            
+            IC_fac = 1.0 - st_IC 
 
             if t_im.protection_Infection[pathogen_name] < 1.0 # target not totally immune
 
@@ -145,8 +152,10 @@ function transmit_infection_AOB!(source::Agent_T, target::Agent_T, time_of_expos
                 foi_source *= immunity_fac_target
                 foi_source *= IC_fac # infection control  
 
+                
+
                 # TODO: include other factors associated with transmission. 
-                p_trans = 1.0 - exp((-1.0 * foi_source * dt))
+                p_trans = 1.0 - exp((-1.0 * foi_source))
 
                 #println("agent $(source.id) trying to infect agent $(target.id) with $pathogen_name with probability $p_trans")
 
@@ -170,7 +179,7 @@ end
 
 
 # infect index case
-function select_random_general_staff(agents::Agents, day::Int64)::Int64
+function select_random_general_staff(agents::Agents_T, day::Int64)::Int64
 
     ids = collect(keys(agents.workers_G))
     
@@ -198,7 +207,7 @@ function select_random_resident(agents)::Int64
 
 end
 
-function select_random_worker(agents::Agents, day::Int64)::Int64
+function select_random_worker(agents::Agents_T, day::Int64)::Int64
 
     ids_g = collect(keys(agents.workers_G))
     ids_m = collect(keys(agents.workers_M))
@@ -225,33 +234,25 @@ end
 # this ensures that p(index case is worker) = p(worker), and that 
 # the definition of 'outbreak' doesn't change (i.e., the outbreak simulation)
 # begins when the facility is exposed. 
-function select_random_agent(agents::Agents, day::Int64)::Int64
+function select_random_agent(agents::Agents_T, day::Int64)::Int64
 
-    present = false
     ids = collect(keys(agents.All))
     index_case = sample(rng_infections, ids)
-    if is_resident(agents.All[index_case])
-        present = true 
+
+    # ensures we select a worker who is present,
+    # while selecting workers with probability proportional 
+    # to the worker fraction.
+    if is_worker(agents.All[index_case])
+        index_case = select_random_worker(agents, day)
     end
-    n_max = 1000
-    n = 0
-    while !present
-        index_case = sample(rng_infections, ids)
-        present = (agents.All[index_case].roster[day] == 1)
-        n += 1
-        if n > n_max
-            println("trouble assigning random index worker index case, check rosters")
-            return 0
-        end
-    
-    end
+
     return index_case
 end
 
 
 # update agent infections 
 # NOTE: this function uses the global parameter dt. 
-function update_infections!(agents::Agents, infected_agents::Dict{Int64, Float64})
+function update_infections!(agents::Agents_T, infected_agents::Dict{Int64, Float64})
 
     agents_fully_recovered = []
     for (id_i, t_inf) in infected_agents
@@ -298,25 +299,37 @@ end
 
 
 # sample infectious contacts (network-based transmission)
-function compute_transmission!(all_transmissions::DataFrame, infected_agents:: Dict{Int64, Float64}, agents::Agents,
+function compute_transmission!(all_transmissions::DataFrame, infected_agents:: Dict{Int64, Float64}, agents::Agents_T,
                                day_of_week::Int64, w_tot_d::Dict{Int64, Float64}, 
-                               contact_rate::Float64, bkg_contact_rate::Float64, t::Float64)
+                               contact_rate::Float64, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64, t::Float64)
 
     E_list_infectious_t = E_list()
     #iterate over infected agents and add edges to infectious E_list
     infected_resident_ids = Vector{Int64}() # for background contact sampling 
     for (id, t_inf) in infected_agents
+        a = agents.All[id] 
+        if haskey(a.contacts, day_of_week)
+            if is_resident(a) # queuing for background contacts. 
+                push!(infected_resident_ids, a.id) 
+                #NOTE: 2022 09 19 nesting this under the isolation test means isolated residents were not added
+                # this should now be fixed 
+            end 
 
-        # if agent is removed, do not add their edges 
-        if agents.All[id].t_removed < 0.0
-
-            a = agents.All[id] 
-            if haskey(a.contacts, day_of_week)
-                if is_resident(a) # queuing for background contacts. 
-                    push!(infected_resident_ids, a.id)
-                end 
-                add_source_edges_to_E_list!(E_list_infectious_t, a, a.contacts[day_of_week])
+            active_contacts = Array{Contact_T, 1}()
+            for c in a.contacts[day_of_week]
+                push!(active_contacts, c) 
+                # active contacts will include same-room resident contacts and any 
+                # worker contacts where the target is not removed (i.e., furloughed)
+                # NOTE: isolated residents still contribute to these contacts, 
+                # their isolation status is taken into account w.r.t. background contacts
+                # only. 
             end
+
+            #if day_of_week == 5 && a.id == 155
+            #    println("check here")
+            #end
+
+            add_source_edges_to_E_list!(E_list_infectious_t, a, active_contacts)#a.contacts[day_of_week])
         end
     end
 
@@ -331,13 +344,13 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
     # Poisson(net contact rate * prop_infected * dt) 
     infectious_contact_rate = contact_rate * prop_infected
     dist = Poisson(infectious_contact_rate)
-    n_to_sample = rand(rng_infections, dist)
+    n_to_sample = rand(rng_contacts, dist)
 
     edges_to_evaluate = sample_E_list(E_list_infectious_t, 
                                       n_to_sample, 
                                       weights_infectious_edges_t)
     
-    add_background_contacts!(edges_to_evaluate, infected_resident_ids, agents, bkg_contact_rate )
+    add_background_contacts!(edges_to_evaluate, infected_resident_ids, agents, bkg_contact_rate, bkg_contact_rate_iso )
     
     
                                       #= some debugging printouts
@@ -346,6 +359,14 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
         #println("p_infected at time $t : $prop_infected")
         #println("going to evaluate: $n_to_sample infectious edges")
     =#
+
+    # 2022 09 19 testing: 
+    all_edges_good = test_contacts(edges_to_evaluate, agents)
+    if !all_edges_good
+        println("WARNING: invalid infectious contacts found! Check network.")
+    end
+
+
     # compute pairwise transmission over edges: 
     # there is still the possibility of selecting 
     # edges between infected individuals, so we'll have to exclude those: 
@@ -354,8 +375,9 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
         source = agents.All[e.source_id]
         target = agents.All[e.target_id]
 
-
-        if ( ACTIVE_OUTBREAK && OUTBREAK_CONTROL ) 
+        # NOTE: adding PPE flag to this condition (2022 09 23)
+        if ( ACTIVE_OUTBREAK && OUTBREAK_CONTROL && PPE_AVAILABLE) 
+            
             transmission_occurred = transmit_infection_AOB!(source, target, t, infected_agents)
         else
             transmission_occurred = transmit_infection!(source, target, t, infected_agents)
@@ -371,26 +393,89 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
             else
                 push!(all_transmissions, (source.id, target.id, t, 1))
             end
-
         end
     end
 
 end
 
-function add_background_contacts!(edges_out::E_list, source_ids::Vector{Int64}, agents::Agents, bkg_contact_rate::Float64)
+
+# testing utility: 
+function test_contacts(edges_to_evaluate::E_list_T, agents::Agents_T)::Bool
+
+    test_flag = true 
+
+    for e in edges_to_evaluate.edges 
+
+        s = agents.All[e.source_id] 
+        t = agents.All[e.target_id]
+        
+        # tests: 
+        #(1) is source infectious? 
+        if !is_infected(s, "Omicron")
+            println("agent $(s.id) is trying to infect agent $(t.id), but $(s.id) is not infected")
+            test_flag = false 
+        end
+
+        #(2) is source an isolated worker? 
+        if (is_worker(s) && is_isolated(s))
+            println("agent $(s.id) is trying to infect agent $(t.id), but $(s.id) is an isolated worker")
+            test_flag = false 
+        end
+
+        #(3) is target an isolated worker? 
+        if (is_worker(t) && is_isolated(t))
+            println("agent $(s.id) is trying to infect agent $(t.id), but $(t.id) is an isolated worker")
+            test_flag = false 
+        end
+
+    end
+
+    return test_flag 
+
+end
+
+
+function add_background_contacts!(edges_out::E_list_T, source_ids::Vector{Int64}, agents::Agents_T, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64)
 
     dist = Poisson(bkg_contact_rate)
+    dist_iso = Poisson(bkg_contact_rate_iso)
+
     resident_ids = collect(keys(agents.residents))
+    # sample should be weighted by isolation status 
+    # NOTE: isolation reduces number of contacts made 
+    # also reduces relative chance of being contacted
+    iso_weights = Float64[]
+    for r_id in resident_ids 
+        # check isolation status 
+        if !is_isolated(agents.residents[r_id])
+            # resident is not isolated 
+            if ACTIVE_OUTBREAK && RESIDENT_LOCKDOWN
+            push!(iso_weights, 1.0 - resident_lockdown_efficacy)
+            else 
+                push!(iso_weights, 1.0)
+            end
+        else
+            push!(iso_weights, 1.0 - resident_isolation_efficacy)
+        end
+    end
 
     for source_id in source_ids
-        n_to_sample = rand(rng_infections, dist)
+
+        # not isolated 
+        if !is_isolated(agents.All[source_id])
+            n_to_sample = rand(rng_contacts, dist)
+        else
+            n_to_sample = rand(rng_contacts, dist_iso)
+        end
+        
         if n_to_sample > 0
             n_sampled = 0
             while n_sampled < n_to_sample
                 
-                target_id = sample(rng_infections, resident_ids) # sampling background contacts from residents only
+                target_id = sample(rng_contacts, resident_ids, Weights(iso_weights)) # sampling background contacts from residents only
+                
                 if (target_id != source_id)
-                    new_edge = edge_type(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
+                    new_edge = Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
                     push!(edges_out.edges, new_edge)
                     n_sampled += 1
                 end
@@ -402,194 +487,3 @@ end
 
 
 
-# simulate testing and detection 
-
-function test_agent(a::Agent_T)::Bool
-
-    positive = false 
-
-    for (pathogen_name, infection) in a.infections
-        compute_test_sensitivity!(infection)
-        if rand(rng_testing) < infection.test_sensitivity 
-            positive = true
-        end
-    end
-
-    return positive
-end
-
-function test_agents!(detections::DataFrame, p_test_per_day::Float64, 
-                      agents::Agents, infected_agents::Dict{Int64, Float64}, day_of_week::Int64, t::Float64)
-
-    # test for existing infections (RAT): 
-    for (id, t_inf) in infected_agents
-        a = agents.All[id] 
-
-        # TODO implement detection upon symptom expression as well as testing 
-        if haskey(a.contacts, day_of_week) # if they're present 
-            if rand(rng_testing) < p_test_per_day
-                tested_positive = test_agent(a)
-                if tested_positive 
-                    a.t_detected = t
-
-                    type_index = 0
-
-                    if is_worker(a)
-                        if a.is_medical
-                            type_index = 3
-                        else
-                            type_index = 2
-                        end
-                    else
-                        type_index = 1
-                    end
-
-                    push!(detections, (a.id, t, type_index))
-                end
-            end
-        end
-    end
-end
-
-function test_workers!(detections::DataFrame, p_test_per_day::Float64, 
-                       agents::Agents, infected_agents::Dict{Int64, Float64},
-                       day_of_week::Int64, t::Float64, removed_agents::Dict{Int64, Float64})
-
-    # test for existing infections (RAT): 
-    for (id, t_inf) in infected_agents
-        # check if they've already been detected: 
-        
-
-        a = agents.All[id] 
-        if a.t_detected < 0.0
-            if is_worker(a)
-            # TODO implement detection upon symptom expression as well as testing 
-                if (haskey(a.contacts, day_of_week) && (a.t_removed < 0.0 ) )# if they're present 
-                    
-                    p = p_test_per_day
-                    if check_symptom_expression(a)
-                        p = p_test_if_symptomatic
-                    end
-                    
-                    if rand(rng_testing) < p
-                        tested_positive = test_agent(a)
-                        if tested_positive 
-                            a.t_detected = t
-
-                            #remove worker agent: 
-                            remove_worker!(a, t, removed_agents)
-                            
-
-                            type_index = 0
-                            if a.is_medical
-                                type_index = 3
-                            else
-                                type_index = 2
-                            end
-
-                            push!(detections, (a.id, t, type_index))
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
-function test_residents!(detections::DataFrame, p_test_per_day::Float64, 
-                         agents::Agents, infected_agents::Dict{Int64, Float64}, 
-                         day_of_week::Int64, t::Float64)
-
-    # test for existing infections (RAT): 
-    for (id, t_inf) in infected_agents
-        a = agents.All[id] 
-        if a.t_detected < 0.0 # initialised negative for this purpose 
-            if is_resident(a)
-            # TODO implement detection upon symptom expression as well as testing 
-                if haskey(a.contacts, day_of_week) # if they're present 
-
-                    p = p_test_per_day
-                    if check_symptom_expression(a)
-                        p = p_test_if_symptomatic
-                    end
-                    
-                    if rand(rng_testing) < p
-
-                        tested_positive = test_agent(a)
-                        if tested_positive 
-                            a.t_detected = t
-
-                            type_index = 1
-
-                            push!(detections, (a.id, t, type_index))
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
-function check_symptom_expression(a::Agent_T)::Bool
-
-    symptoms = false 
-    for (name, im) in a.infections
-        if im.expressing_symptoms
-            symptoms = true
-        end
-    end
-
-    return symptoms
-
-end
-
-# toggle active outbreak
-
-function count_detections_last_7_days(detections::DataFrame, t)::Int64
-   
-    d = floor(t) 
-    dm7 = d - 7
-
-    detections_last_7 = detections[detections.time_detected .> dm7, :]
-
-    return size(detections_last_7, 1)
-
-end
-
-
-# remove a worker : NOTE: don't need to modify w_tot_d IF we assume that removing a worker
-# reduces the overall contact rate proportionally to w_i / w_tot (differences cancel)
-# ALTERNATELY: if we re-distributed the contacts to other workers, the overall contact rate
-# would not change and neither would the denominators in w_tot_d. 
-# TODO: determine if partial redistribution of contacts would require altering denominators 
-function remove_worker!(a::Agent_T, t_removed::Float64, removed_agents::Dict{Int64, Float64})
-    # a removed worker can't infect or be infected. 
-    if WORKER_CASE_ISOLATION
-        a.t_removed = t_removed
-        removed_agents[a.id] = t_removed
-    end
-end
-
-function update_absentees!(agents::Agents, removal_period::Float64, removed_agents::Dict{Int64, Float64}, t::Float64 )
-
-    n_absent = 0 
-
-    agents_to_reinstate = []
-    for (id_i, t_removed) in removed_agents
-        if t - t_removed > removal_period
-            a = agents.All[id_i]
-            a.t_removed = -1.0 #resident
-            push!(agents_to_reinstate, id_i)
-        else
-            n_absent += 1
-        end
-    end
-
-    for id_i in agents_to_reinstate
-        delete!(removed_agents, id_i)
-    end
-
-    #println("number of agents absent: $n_absent")
-
-end
-# reinstate a worker (modifies the contact weight denominators)

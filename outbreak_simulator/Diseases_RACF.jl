@@ -309,10 +309,21 @@ for d = 1:n_diseases
     # initialise disease (Delta variant, SARS-CoV-2) 
     # TODO: update for omicron
     R0 = 6.0
-    beta = R0/3.94 
+    # note: scaling this down because I removed dt from the FoI computation 
+    # in Transmission_Dynamics.jl, this was a carryover from when I was 
+    # implementing this as frequency-dependent transmission in a previous project
+    # in this implementation, the effect of the timestep is accounted for in the 
+    # contact rate, not in the force of infection. Including a constant of 0.1 
+    # here to make sure calibration is stable. 
+    
+    #old code: beta = R0/3.94 
+    # new code:
+    beta = (R0/3.94) * 0.1 # 2022 10 20
+
     #note: 3.94 is the scaling factor 
     # determined during the calibration of the hotel quarantine model
     #pre-dating this work 
+    # TODO: verify calibration 
     p_asymp = 0.33
     latent_period = dt
     inc_mu = 1.62
@@ -358,7 +369,7 @@ end
 # for our purposes, we've already determined NAT values
 # for each individual at the start of an outbreak, so we don't 
 # need to worry about vaccination history 
-mutable struct immunity_profile <:Immunity_T 
+mutable struct Immunity_Profile <:Immunity_Profile_T 
 
     vaccination_history::Dict{DateTime, String} 
 
@@ -376,7 +387,7 @@ mutable struct immunity_profile <:Immunity_T
     protection_Death::Dict{String, Float64} 
 
     #constructor: 
-    immunity_profile() = new(
+    Immunity_Profile() = new(
         Dict{DateTime, String}(), #vaccination history 
         Dict{DateTime, Disease_T}(), #infection history
         0.0, # peak NAT (initialised to 0)
@@ -393,16 +404,56 @@ mutable struct immunity_profile <:Immunity_T
 end
 
 #consider these placeholders for now, efficacy (protection) values are imputed directly. 
-# in this version but in future versions they may be computed on the fly. 
+# in this version but in future versions they may be computed during a run, and can be dynamic. 
 
-function Efficacy_infection(im::Immunity_T, time_elapsed::Float64)
+# NOTE: these are currently hacked in, the c50 parameters should be contained elsewhere
+# either in the disease dictionary or in the immunity provile, this implementation is 
+# specific to the scenarios involving SARS-CoV-2 (Omicron)
+
+# copied over from my matlab implementation: 
+#c50_hosp = -1.206;
+#c50_death = -1.184;
+#c50_acquisition = -0.4717;
+#c50_transmission = 0.01846;
+#c50_symptoms = -0.6349;
+
+
+#NOTE: these take the raw, relative neut values as input, not the log-10 
+function Efficacy_infection_Omicron(neuts::Float64)::Float64
+    c50 = -0.4717
+
+    k = exp(1.707)
+    log10_neuts = log10(neuts)
+    eff = 1.0 / (1.0 + exp(-1.0 * k *(log10_neuts - c50)))
+    return eff 
 end
 
-function Efficacy_OT(im::Immunity_T, time_elapsed::Float64)
+function Efficacy_OT_Omicron(neuts::Float64)::Float64
+    
+    c50 = 0.01846
+
+    k = exp(1.707)
+    log10_neuts = log10(neuts)
+    eff = 1.0 / (1.0 + exp(-1.0 * k *(log10_neuts - c50)))
+    return eff 
 end
 
-function Efficacy_Symptoms(im::Immunity_T, time_elapsed::Float64)
+function Efficacy_Symptoms_Omicron(neuts::Float64)::Float64
+
+    c50 = -0.6349
+
+    k = exp(1.707)
+    log10_neuts = log10(neuts)
+    eff = 1.0 / (1.0 + exp(-1.0 * k *(log10_neuts - c50)))
+    return eff 
 end
 
-function Efficacy_Death(im::Immunity_T, time_elapsed::Float64)
+function Efficacy_Death_Omicron(neuts::Float64)::Float64
+
+    c50 = -1.184
+
+    k = exp(1.707)
+    log10_neuts = log10(neuts)
+    eff = 1.0 / (1.0 + exp(-1.0 * k *(log10_neuts - c50)))
+    return eff 
 end

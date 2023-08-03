@@ -4,30 +4,23 @@ close all
 
 % specify input and output locations
 
-input_date_label = '2022_09_28'
-output_date_label = '2022_09_29'
+input_date_label = '2023_08_02'
+output_date_label = '2023_08_03'
 
+current_dir = pwd();
 
-pop_gen_dir = 'C:\Users\czachreson\Desktop\policy_work\RACF_2022\RACF_code\population_generator\';
-%OB_agent_list_dir = [pop_gen_dir, input_date_label '\vaccination_timelines_step_2\outputs\'];
+%locate directory with synthetic population info: 
+cd('../')
+pop_gen_dir = pwd();
+cd('./network_generator_step_2')
 
-%just using this to get the list of outbreaks
-%OB_resident_list_fname = [OB_agent_list_dir, 'OB_resident_immunity_status__rng_1_Tan_0.2_Tex_0.2_DtPro_2_DtMin_8_ver_v0.csv'];
+input_dirname = [pop_gen_dir,'\facility_generator_step_1\',...
+                 'agents_Hypothetical_facilities\' input_date_label];
 
+output_dirname = [pwd() '\agents_model_ready\' output_date_label];
 
-%OB_residents = readtable(OB_resident_list_fname);
-
-%output_dirname = [pwd() '\agents_OB_res_bkg_contact\' output_date_label]
-
-
-input_dirname = [pop_gen_dir, '\' input_date_label,...
-    '\facility_generator_step_3\agents_Hypothetical_facilities\' input_date_label];
-
-output_dirname = [pwd() '\agents_model_ready_hypothetical\' output_date_label];
-
-%iterate through outbreak set and construct networks
-
-fac_list_dirname = [pop_gen_dir '\' input_date_label '\facility_classifier_step_0'];
+fac_list_dirname = [pop_gen_dir, ...
+                    '\facility_generator_step_1\facility_characteristics'];
 fac_list_fname = [fac_list_dirname, '\hypothetical_facility_characteristics.csv'];
 fac_list = readtable(fac_list_fname);
 
