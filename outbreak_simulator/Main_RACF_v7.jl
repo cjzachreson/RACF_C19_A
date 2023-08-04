@@ -30,12 +30,7 @@
 include("./header_RACF.jl")
 
 
-global output_dir_L1 = pwd() * "\\output_exp_1_v6_redo\\"
-        
-if !ispath(output_dir_L1)
-    mkpath(output_dir_L1)
-end
-
+global output_dir_L1 = "" #placeholder
 
 # DEFINE RANGE OF CONTROL PARAMETERS: 
 
@@ -52,7 +47,7 @@ global PPE_efficacy_scalers = Float64[1.0]
 # placeholder
 global PPE_efficacy_relative_to_default = 1.0
 
-global n_outbreaks_tot = 1000 # how many 'declared' outbreaks to simulate before terminating each run loop
+global n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
 # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
 ## 
 global delay_val_i = 0 # placeholder these get re-valued on loop 
@@ -74,7 +69,7 @@ global UNIFORM_IMMUNITY = false
 
 global data_dir_L1 = pwd() #C:\\Users\\czachreson\\Desktop\\policy_work\\RACF_2022\\RACF_code\\population_generator\\2022_09_02"
 
-global data_dir_L2 = "\\input"#"\\network_generator_step_4\\agents_OB_model_ready_exemplar\\2022_09_02"
+global data_dir_L2 = "input\\hypotheticals"#"\\network_generator_step_4\\agents_OB_model_ready_exemplar\\2022_09_02"
 
 # list of facilitis to iterate through
 global fac_list_dir = "$data_dir_L1\\$data_dir_L2"
@@ -103,7 +98,7 @@ global output_dir_fac = ""
 function main()
 
     
-    include("./setup_RACF.jl")
+    include("./setup_RACF_v7.jl")
 
     include("./networks_RACF.jl")
 
@@ -697,14 +692,13 @@ for im in immunity_states
 
     global IMMUNITY = im
 
-    for i in 1:n_populations#outbreak_indices
+    for i in 1:n_populations #facility indices
 
-        global fac_i = i #OB_i gets used in main() for setting up outputs. 
-        #global OB_index = OB_indices[OB_i]
+        global fac_i = i 
        
         global fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
         
-        global data_dirname = "$(data_dir_L1)$(data_dir_L2)\\$fac_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
+        global data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$fac_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
 
 
         if !ispath(data_dirname)
