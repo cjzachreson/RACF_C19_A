@@ -1,0 +1,6 @@
+service_id,group_id,first_date,last_date,n_res_cases_init,n_staff_cases_init,n_res_cases_tot,n_staff_cases_tot,last_date_censored
+137,1,21/02/2022,28/02/2022,0,0,0,-1,0
+965,2,11/04/2022,25/04/2022,0,1,18,8,1
+8073,3,25/04/2022,25/04/2022,3,6,3,6,1
+1879,4,07/03/2022,14/03/2022,1,0,1,0,0
+7353,5,18/04/2022,25/04/2022,5,0,10,3,1
