@@ -27,7 +27,7 @@
 # compliance with scheduled testing of workforce 
 
 
-include("./header_RACF.jl")
+include("./header_RACF_R0_checked.jl")
 
 
 global output_dir_L1 = "" #placeholder
@@ -35,7 +35,7 @@ global output_dir_L1 = "" #placeholder
 # DEFINE RANGE OF CONTROL PARAMETERS: 
 
 #vaccine-acquired immunity: 
-global immunity_states = [true]
+global immunity_states = [false, true]
 
 # delay values in days 
 global delay_vals = Int64[0]
@@ -97,19 +97,19 @@ global output_dir_fac = ""
 function main()
 
     
-    include("./setup_RACF_v7.jl")
+    include("./setup_RACF_v7_R0_checked.jl")
 
-    include("./networks_RACF.jl")
+    include("./networks_RACF_R0_checked.jl")
 
-    include("./Diseases_RACF.jl")
+    include("./Diseases_RACF_R0_checked.jl")
 
-    include("./Agents_RACF.jl")
+    include("./Agents_RACF_R0_checked.jl")
 
-    include("./Facility_Structure.jl")
+    include("./Facility_Structure_R0_checked.jl")
 
-    include("./Transmission_Dynamics.jl")
+    include("./Transmission_Dynamics_R0_checked.jl")
 
-    include("./Outbreak_Response.jl")
+    include("./Outbreak_Response_R0_checked.jl")
     
 
     #output linelist vectors 
@@ -691,7 +691,7 @@ end
 
 
 
-# loop through exemplars and run the simulations: 
+# loop through hypotheticals and run the simulations: 
 
 for im in immunity_states 
 
