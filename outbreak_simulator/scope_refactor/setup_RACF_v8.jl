@@ -4,6 +4,7 @@ module Setup
 
 using Random 
 using DataFrames
+using CSV
 
 #abstract type definitions 
 abstract type Agent_T end
@@ -68,8 +69,8 @@ mutable struct run_configuration <: Config_T
     w_res_diff_room::Float64
 
     immunity::Bool
-    imunity_from_dist::Bool
-    uniform_immunity::Bool #note this parameter is not listed in the config description
+    immunity_from_dist::Bool
+    uniform_immunity::Bool 
 
     outbreak_control::Bool
     active_outbreak::Bool
@@ -99,7 +100,6 @@ mutable struct run_configuration <: Config_T
     resident_case_isolation::Bool
     resident_isolation_efficacy::Float64
     removal_period::Float64
-    outbreak_control::Bool
 
     write_transmission_tree_flag::Bool
 
@@ -107,12 +107,15 @@ mutable struct run_configuration <: Config_T
     worker_index_case::Bool
 
     pop_data_dirname::String
+    residents_fname::String
+    workers_G_fname::String
+    workers_M_fname::String
 
     run_configuration() = new()# default initialiser is defined below. 
 end
 
 
-function setup_run_default!(config::Config_T)
+function setup_run_default!(config::Config_T, data_dirname::String)
 
     # setting up some utilities: 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
@@ -258,9 +261,9 @@ function setup_run_default!(config::Config_T)
             # NOTE: this is not robust code, in future versions the distributions 
             # can be setup in a way that's more flexible. 
         
-        unifom_immunity = true #default 
+        uniform_immunity = true #default 
             description = "boolean flag true if all agent types have immunity drawn from the same distribution"
-            config_line = (@Name(unifom_immunity) * ", " * description * ", " * "$unifom_immunity" )
+            config_line = (@Name(uniform_immunity) * ", " * description * ", " * "$uniform_immunity" )
             config_str = config_str*config_line*"\n"
             config.uniform_immunity = uniform_immunity
 
@@ -434,15 +437,6 @@ function setup_run_default!(config::Config_T)
             config_str = config_str*config_line*"\n"
             config.removal_period = removal_period
 
-        #2022 09 21 setup variables moved from Main: 
-        # flag for toggling infection control during active outbreaks (false means unmitigated)
-        outbreak_control = true
-        description = "flag whether to apply any outbreak control measures"
-        config_line = (@Name(outbreak_control) * ", " * description * ", " * "$outbreak_control" )
-        config_str = config_str*config_line*"\n"
-        config.outbreak_control = outbreak_control
-
-
     config_str = config_str*"\n"*"***\n"
     #flag telling the system to write the transmission tree and detections to file: 
     write_transmission_tree_flag = false
@@ -470,9 +464,9 @@ function setup_run_default!(config::Config_T)
     # paths input files (TODO: define functions for modifying these from list in csv):
 
     config_str = config_str*"\n"*"***population data location***\n"
-    config_line = DATA_DIRNAME 
-    config_str = config_str*config_line*"\n"
-    #data_dirname = pwd() * "\\network_constructor_output\\OB_2"
+        config_line = data_dirname 
+        config_str = config_str*config_line*"\n"
+        config.pop_data_dirname = data_dirname
 
     #E_list_fname = data_dirname * "\\Edge_lists_test.csv"
     config.residents_fname = data_dirname * "\\residents_for_Julia_test.csv"
@@ -496,7 +490,7 @@ function update_config_record!(config::Config_T)
             config_str = config_str*config_line*"\n"
 
         # compliance with scheduled testing 
-        test_compliance_staff = config.test_compliance_staff = test_compliance_staff
+        test_compliance_staff = config.test_compliance_staff
             description = "staff compliance with scheduled testing (probability of compliance with each test)"
             config_line = (@Name(test_compliance_staff) * ", " * description * ", " * "$test_compliance_staff" )
             config_str = config_str*config_line*"\n"
@@ -600,9 +594,9 @@ function update_config_record!(config::Config_T)
             # NOTE: this is not robust code, in future versions the distributions 
             # can be setup in a way that's more flexible. 
         
-        unifom_immunity = config.uniform_immunity
+        uniform_immunity = config.uniform_immunity
             description = "boolean flag true if all agent types have immunity drawn from the same distribution"
-            config_line = (@Name(unifom_immunity) * ", " * description * ", " * "$unifom_immunity" )
+            config_line = (@Name(uniform_immunity) * ", " * description * ", " * "$uniform_immunity" )
             config_str = config_str*config_line*"\n"
 
         # flag for toggling infection control during active outbreaks (false means unmitigated)
@@ -792,17 +786,13 @@ function update_config_record!(config::Config_T)
 
     # paths input files 
     config_str = config_str*"\n"*"***population data location***\n"
-        config_line = DATA_DIRNAME #note this is a global variable, might not be able to see it
+        config_line = config.pop_data_dirname #note this is a global variable, might not be able to see it
         config_str = config_str*config_line*"\n"
 
     
     config.config_str = config_str
 
-    write_config_details(config)
-
 end
-
-
 
 
 
@@ -814,10 +804,10 @@ function read_in_population_data!(pop_input::Pop_Input_T, config::Config_T)
 end
 
 
-function write_config_details(config::Config_T)
+function write_config_details(config::Config_T, outdir::String)
 
     # write config str to output file. (note - applies global variable output_dir_fac)
-    config_file = open("$(output_dir_fac)\\config.txt", "w")
+    config_file = open("$(outdir)\\config.txt", "w")
     write(config_file, config.config_str)
     close(config_file)
 
@@ -828,43 +818,24 @@ end
 
 function set_immunity_dist!(config::Config_T)
 
-    # if config.immunity_from_dist
-        
-    #     if config.uniform_immunity
+    # default values (taken from facility-specific distributions or aggregates thereof.)
+    # NOTE: larger sigma values reflect heterogeneity in timing and vaccine type in real facilities. 
+    # NOTE: for reference, mu of approx. -1.5 corresponds to (for example) Pfizer dose 3 after 12 weeks of waning. 
+    config.log_mu_res = -1.47
+    config.log_sig_res = 1.34
 
-    #         config.log_mu_res = mu_neuts_all
-    #         config.log_sig_res = mu_sigma
+    config.log_mu_wG = -1.79
+    config.log_sig_wG = 1.43
 
-    #         config.log_mu_wG = mu_neuts_all
-    #         config.log_sig_wG = mu_sigma
-
-    #         config.log_mu_wM = mu_neuts_all
-    #         config.log_sig_wM = mu_sigma
-
-
-    #     else
-
-            # default values (taken from facility-specific distributions or aggregates thereof.)
-            # NOTE: larger sigma values reflect heterogeneity in timing and vaccine type in real facilities. 
-            # NOTE: for reference, mu of approx. -1.5 corresponds to (for example) Pfizer dose 3 after 12 weeks of waning. 
-            config.log_mu_res = -1.47
-            config.log_sig_res = 1.34
-
-            config.log_mu_wG = -1.79
-            config.log_sig_wG = 1.43
-
-            config.log_mu_wM = -1.64
-            config.log_sig_wM = 1.51
-
-    #     end
-    # end
+    config.log_mu_wM = -1.64
+    config.log_sig_wM = 1.51
 
     return
 
 end
 
 
-function apply_seed_offset!(config::config_T, seed_offset::Int64)
+function apply_seed_offset!(config::Config_T, seed_offset::Int64)
 
     config.seed_contacts += seed_offset
     config.seed_testing += seed_offset 

@@ -94,14 +94,19 @@ global output_dir_L1 = ""
 global output_dir_L2 = ""
 global output_dir_fac = ""
 
+
+include("./setup_RACF_v8.jl")
+import .Setup
+
 # define the main function 
-function main()
+function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
+
+
+    
 
     # TODO: the include statements below need to come before the main() function
     # this means refactoring the global variables defined in each file and implementing 
     # them as function calls, called within main(). 
-    
-    include("./setup_RACF_v7.jl")
 
     include("./networks_RACF.jl")
 
@@ -745,7 +750,32 @@ for im in immunity_states
                         mkpath(output_dir_fac)
                     end
 
-                    main()
+                    config_run = Setup.run_configuration()
+                    Setup.setup_run_default!(config_run, data_dirname)
+
+                    # modify any of the default config
+                    # parameters that are adjusted by the run loop
+                    # globals.
+                    
+                    Setup.set_immunity_dist!(config_run)
+                    config_run.delay_infection_control = delay_val_i
+                    config_run.test_compliance_staff = test_compliance_j
+                    config_run.eff_IC_resident_resident *= PPE_efficacy_relative_to_default
+                    config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
+                    config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
+
+                    #update the config string: 
+
+                    Setup.update_config_record!(config_run)
+
+                    #write record of run configuration 
+                    Setup.write_config_details(config_run, output_dir_fac)
+
+                    pop_run = Setup.population_input()
+                    Setup.read_in_population_data!(pop_run, config_run)
+
+
+                    main(config_run, pop_run)
                 end
 
             end
