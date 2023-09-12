@@ -97,6 +97,9 @@ global output_dir_fac = ""
 # define the main function 
 function main()
 
+    # TODO: the include statements below need to come before the main() function
+    # this means refactoring the global variables defined in each file and implementing 
+    # them as function calls, called within main(). 
     
     include("./setup_RACF_v7.jl")
 
