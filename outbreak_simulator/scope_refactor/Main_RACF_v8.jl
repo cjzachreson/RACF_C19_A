@@ -98,7 +98,14 @@ global output_dir_fac = ""
 include("./setup_RACF_v8.jl")
 import .Setup
 
+include("./networks_RACF_v8.jl")
+import .Networks_RACF
+
+include("./Diseases_RACF_v8.jl")
+import .Diseases_RACF
+
 # define the main function 
+#TODO: this should be the run function, not the main function
 function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
 
 
@@ -108,9 +115,9 @@ function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
     # this means refactoring the global variables defined in each file and implementing 
     # them as function calls, called within main(). 
 
-    include("./networks_RACF.jl")
+    #include("./networks_RACF.jl")
 
-    include("./Diseases_RACF.jl")
+    #include("./Diseases_RACF.jl")
 
     include("./Agents_RACF.jl")
 

@@ -1,3 +1,5 @@
+module Transmission_Dynamics
+
 
 
 # infectious disease dynamics (functions)
@@ -6,15 +8,17 @@
 
 # infection: 
 
-function infect_agent!(a::Agent_T, pathogen::Disease_T, time_of_exposure::Float64, infected_agents::Dict{Int64, Float64})
-
-    t_inc = rand(rng_infections, pathogen.inc_dist)
-    q_inc = cdf(pathogen.inc_dist, t_inc)
-    t_rec = rand(rng_infections, pathogen.rec_dist)
-    beta_max = rand(rng_infections, pathogen.b_dist)
+function infect_agent!(a::Agent_T, 
+                       pathogen::Diseases_RACF.Disease_T, 
+                       time_of_exposure::Float64, 
+                       infected_agents::Dict{Int64, Float64},
+                       config::Setup.Config_T)
 
     a.n_infections += 1
-    new_infection = infection(pathogen, 0.0, t_inc, q_inc, t_rec, beta_max) # time since infection is 0
+
+    new_infection = Diseases.infection() #initialise a blank infection
+    Diseases.set_infection_default!(new_infection, pathogen, config)
+    # time since infection is 0
     
     # reinitialise symptom expression based on immunity status: 
     p_symp_i = 1.0 - pathogen.p_asymp
@@ -487,3 +491,4 @@ end
 
 
 
+end

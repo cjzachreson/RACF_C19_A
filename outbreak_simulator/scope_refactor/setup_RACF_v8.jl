@@ -9,18 +9,9 @@ using CSV
 #abstract type definitions 
 abstract type Agent_T end
 abstract type Agents_T end 
-abstract type Contact_T end 
-abstract type Edge_T end 
-abstract type E_list_T end 
-abstract type E_list_temporal_T end 
-abstract type N_list_T end 
-abstract type N_list_temporal_multigraph_T end 
+
 abstract type Room_T end 
 abstract type Rooms_T end 
-abstract type Disease_T end
-abstract type Infection_T end
-abstract type Immunity_Profile_T end
-abstract type Vaccine_T end
 
 abstract type Config_T end
 abstract type Pop_Input_T end
@@ -40,6 +31,8 @@ end
 
 mutable struct run_configuration <: Config_T
     config_str::String
+
+    R0::Float64
 
     delay_infection_control::Float64
 
@@ -119,6 +112,14 @@ function setup_run_default!(config::Config_T, data_dirname::String)
 
     # setting up some utilities: 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
+
+        #reproductive ratio: 
+        R0 = 6.0 # default 
+        description = "Reproductive ratio, calibrated to beta and timestep"
+        config_line = (@Name(R0) * ", " * description * ", " * "$R0" )
+        config_str = config_str*config_line*"\n"
+        # assign to struct property. 
+        config.R0 = R0
 
         # add control parameter values to config:
         # response delay  
@@ -481,6 +482,12 @@ end
 function update_config_record!(config::Config_T)
 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
+
+        #reproductive ratio: 
+        R0 = config.R0
+            description = "Reproductive ratio, calibrated to beta and timestep"
+            config_line = (@Name(R0) * ", " * description * ", " * "$R0" )
+            config_str = config_str*config_line*"\n"
 
         # add control parameter values to config:
         # response delay  

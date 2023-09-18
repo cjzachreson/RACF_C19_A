@@ -1,3 +1,20 @@
+
+
+
+module Diseases_RACF
+
+using Distributions
+using Random
+using Dates
+using Main.Setup # need to import configuration variables. 
+
+abstract type Disease_T end
+abstract type Diseases_T end 
+abstract type Infection_T end
+abstract type Immunity_Profile_T end
+abstract type Vaccine_T end
+
+
 # immutable stuct for general disease parameters, defined 
 # for each different pathogen: 
 struct disease_params <: Disease_T
@@ -41,64 +58,63 @@ struct disease_params <: Disease_T
 
     #constructor (used below for Delta veriant SARS-CoV-2)
 
-    disease_params(beta, 
-                   p_asymp, 
-                   latent_period, 
-                   inc_mu, 
-                   inc_sig, 
-                   rec_min, 
-                   rec_max, 
-                   b_dispersion, 
-                   V_max, 
-                   inc_plat_fac, 
-                   rec_plat_fac, 
-                   name, 
-                   c_lims, 
-                   b1_lims, 
-                   b2_lims, 
-                   b3_lims ) = 
-            new(
-            ## beta, global transmission scaler
-            beta,#R0 / 3.94,    #beta::Float64  # 1
-    
-            # asymptomatic fraction
-            p_asymp,    #p_asymp::Float64  
-
-            #latent period 
-            latent_period,    #latent_period::Float64 #here initialised as dt (for asynchronous update) 
-
-            ## incubation period, log-normal 
-            inc_mu,    #inc_mu::Float64 
-            inc_sig,   #inc_sig::Float64 
-            LogNormal(inc_mu, inc_sig),    #inc_dist::LogNormal{Float64}
-
-            ## post-incubation (recovery) period 
-            rec_min,    #rec_min::Float64
-            rec_max,    #rec_max::Float64
-            Uniform(rec_min, rec_max),    #rec_dist::Uniform{Float64}
-                
-            ## distribution of infectiousness 
-            b_dispersion,    #b_dispersion::Float64
-            beta / b_dispersion,    #b_scale::Float64
-            Gamma(b_dispersion, beta/b_dispersion),    #b_dist::Gamma{Float64}
-
-            ## scaling functions for piecewise 'viral load'
-            V_max,    #Vmax::Float64 # scaling factor for growth and decline of viral load
-            inc_plat_fac,    #inc_plat_fac::Float64 # proportion of incubation period in plateau viral load
-            rec_plat_fac,    #rec_plat_fac::Float64 # proportion of recovery period in plateau viral load
-
-            name, #i.e., "Delta variant"
-
-            # ranges of test sensitivity function parameters 
-            c_lims, # = [1.0, 5.11]
-            b1_lims, # = [0.8, 2.31]
-            b2_lims, # = [1.26, 3.47]
-            b3_lims # = [1.05, 1.14]
-
-    )
+    # TODO: set this up as a null constructor, with default constructor defined separately
+    disease_params() = new()
 
 end
 
+# default parameters are delta-variant like
+function set_disease_params_default!(params::Disease_T, config::Setup.Config_T)
+
+    # initialise disease (Delta variant, SARS-CoV-2) 
+    # TODO: update for omicron
+    #R0 = config.R0#6.0
+    # note: scaling this down because I removed dt from the FoI computation 
+    # in Transmission_Dynamics.jl, this was a carryover from when I was 
+    # implementing this as frequency-dependent transmission in a previous project
+    # in this implementation, the effect of the timestep is accounted for in the 
+    # contact rate, not in the force of infection. Including a constant of 0.1 
+    # here to make sure calibration is stable. 
+    
+    #old code: beta = R0/3.94 
+    # new code:
+    params.beta = (config.R0/3.94) * 0.1 # 2022 10 20
+    # note this is set to R0 = 6 in config, by default. 
+    # if multiple disease are used, this will need to be replaced with 
+    # a vector in the Setup module. 
+
+    #note: 3.94 is the scaling factor 
+    # determined during the calibration of the hotel quarantine model
+    #pre-dating this work 
+    # TODO: verify calibration 
+    params.p_asymp = 0.33
+    params.latent_period = config.dt
+    params.inc_mu = 1.62
+    params.inc_sig = 0.418
+    params.rec_min = 5.0
+    params.rec_max = 10.0
+    params.b_dispersion = 0.15
+    params.V_max = 7.0
+    params.inc_plat_fac = 0.1
+    params.rec_plat_fac = 0.0
+
+    #test sensitivity function parameters: 
+    params.c_lims = [1.0, 5.11]
+    params.b1_lims = [0.8, 2.31]
+    params.b2_lims = [1.26, 3.47]
+    params.b3_lims = [1.05, 1.14]
+
+    ## incubation period, log-normal 
+    params.inc_dist = LogNormal(params.inc_mu, params.inc_sig) #inc_dist::LogNormal{Float64}
+
+    ## post-incubation (recovery) period 
+    params.rec_dist = Uniform(params.rec_min, params.rec_max) #rec_dist::Uniform{Float64}
+        
+    ## distribution of infectiousness 
+    params.b_scale = params.beta / params.b_dispersion  #b_scale::Float64
+    params.b_dist = Gamma(params.b_dispersion, params.beta/params.b_dispersion) #b_dist::Gamma{Float64}
+
+end
 # mutable struct for specific infection parameters, for 
 # infection of an agent with a specific pathogen. 
 mutable struct infection <: Infection_T 
@@ -147,47 +163,60 @@ mutable struct infection <: Infection_T
     b3::Float64
     changepoint::Float64
 
-    # Initialise new infection
-    infection(pathogen::Disease_T, t::Float64, t_inc::Float64, q_inc::Float64, t_rec::Float64, beta_max::Float64) = new(
-    
+    #null constructor: 
+    infection() = new()
+ 
+end
+
+function set_infection_default!(infection::Infection_T, 
+                                pathogen::Disease_T, 
+                                config::Setup.Config_T)
     ## pathogen reference
-        pathogen,
+    infection.pathogen = pathogen
     ## name of pathogen 
-        pathogen.name, # pathogen::String 
-        t, #t_infected::Float64
+    infection.pathogen_name = pathogen.name # pathogen::String 
+    infection.t_infected = 0.0 #t_infected::Float64
     ## latent period
-        pathogen.latent_period, # TODO: draw from distribution as with other intervals
+    infection.t_latent = pathogen.latent_period # TODO: draw from distribution as with other intervals
     ## incubation period (time between exposure and symptom expression)
-        t_inc, #rand(rng, pathogen.inc_dist),#t_inc::Float64
-        q_inc,#cdf(pathogen.inc_dist, t_inc),#q_inc::Float64 NOTE: not sure if it will let me do this, need to check. *** Nope - need to pass as input to constructor. 
+    infection.t_inc = rand(config.rng_infections, pathogen.inc_dist)#t_inc::Float64
+    infection.q_inc = cdf(pathogen.inc_dist, infection.t_inc)#q_inc::Float64 NOTE: not sure if it will let me do this, need to check. *** Nope - need to pass as input to constructor. 
     ## recovery period (time between peak viral load and recovery)
-        t_rec,#rand(rng, pathogen.rec_dist),#t_rec::Float64
+    infection.t_rec = rand(config.rng_infections, pathogen.rec_dist)#t_rec::Float64
     ## symptom expression (bool symptomatic or not) "Will they express symptoms?"
-        rand(rng_infections) < (1.0 - pathogen.p_asymp),#symptomatic::Bool 
+    infection.symptomatic = rand(config.rng_infections) < (1.0 - pathogen.p_asymp)#symptomatic::Bool 
     ## symptom expression (bool expressing symptoms or not) "are they currently expressing symptoms?"
-        false,#expressing_symptoms::Bool 
+    infection.expreessing_symptoms = false #expressing_symptoms::Bool 
     ## force of infection (i.e., baseline infection transmission rate as a function of time)
-        0.0,#beta_t::Float64 
+    infection.beta_t = 0.0#beta_t::Float64 
     
     ### parameters determining force of infection
     ##maximum infectiousness (peaks at symptom onset)
-    beta_max,#rand(rng, pathogen.b_dist),#beta_max::Float64 
-    beta_max / pathogen.Vmax, #beta_min::Float64 #Def: beta_max/Vmax #[NOTE: again, not sure if Julia will let me initialise in this way (does it know the value of beta_max?)] ***
+    infection.beta_max = rand(config.rng_infections, pathogen.b_dist)#beta_max::Float64 
+    infection.beta_min = infection.beta_max / pathogen.Vmax #beta_min::Float64 #Def: beta_max/Vmax #[NOTE: again, not sure if Julia will let me initialise in this way (does it know the value of beta_max?)] ***
 
-    compute_kinc(t_inc, pathogen),#k_inc::Float64 #rate of exponential increase of infectiousness during incubation *** (may need to initialise these after construction)
-    compute_krec(t_rec, pathogen),#k_rec::Float64 #rate of exponential decrease of infectiousness during recovery ***
+    infection.k_inc = compute_kinc(infection.t_inc, pathogen)#k_inc::Float64 #rate of exponential increase of infectiousness during incubation *** (may need to initialise these after construction)
+    infection.k_rec = compute_krec(infection.t_rec, pathogen)#k_rec::Float64 #rate of exponential decrease of infectiousness during recovery ***
 
     ## parameters determining detection probability
     ## RAT detection probability, NOTE: decide whether this is an infection property, or something else... 
     ## for now, I'm going to include these as infection properties, but they could potentially be implemented 
     ## separately... 
-    0.0,#test_sensitivity::Float64 (initially set to 0)
-    pathogen.b1_lims[1] + rand(rng_infections) * (pathogen.b1_lims[2] - pathogen.b1_lims[1]),#b1::Float64
-    pathogen.b2_lims[1] + (1.0 - q_inc) * (pathogen.b2_lims[2] - pathogen.b2_lims[1]),#b2::Float64 ***quantile matching with incubation period. 
-    pathogen.b3_lims[1] + rand(rng_infections) * (pathogen.b3_lims[2] - pathogen.b3_lims[1]),#b3::Float64
-    t_inc - (  q_inc * (pathogen.c_lims[2] - pathogen.c_lims[1]))#changepoint::Float64
-    )
-
+    
+    infection.test_sensitivity = 0.0#test_sensitivity::Float64 (initially set to 0)
+    
+    infection.b1 = pathogen.b1_lims[1] + 
+                    rand(config.rng_infections) * (pathogen.b1_lims[2] - pathogen.b1_lims[1])#b1::Float64
+    
+    infection.b2 = pathogen.b2_lims[1] + 
+                    (1.0 - infection.q_inc) * (pathogen.b2_lims[2] - pathogen.b2_lims[1])#b2::Float64 ***quantile matching with incubation period. 
+    
+    infection.b3 = pathogen.b3_lims[1] + 
+                    rand(config.rng_infections) * (pathogen.b3_lims[2] - pathogen.b3_lims[1])#b3::Float64
+    
+    infection.changepoint = infection.t_inc - 
+                    (infection.q_inc * (pathogen.c_lims[2] - pathogen.c_lims[1]))#changepoint::Float64
+    
 end
 
 # infection update function for time-dependent parameters: 
@@ -296,69 +325,41 @@ end
 #***** Define dictionary of pathogens ******
 # dictionary of diseases 
 #TODO : read these in from parameter files instead of hard-coding. 
-diseases = Dict{String, Disease_T}() #[disease_name] = Delta_variant 
 
-#TODO: parameters are still Delta variant- adjust for omicron. 
-disease_names = ["Omicron"]#["Delta Variant"]
-n_diseases = length(disease_names) 
+mutable struct diseases <: Diseases_T
 
-for d = 1:n_diseases
+    dict::Dict{String, Disease_T} #maping from name to disease parameters
+    names::Vector{String} # names of the different types of infections
+    n::Int64 #number of different types of infections
 
-    disease_name = disease_names[d]
 
-    # initialise disease (Delta variant, SARS-CoV-2) 
-    # TODO: update for omicron
-    R0 = 6.0
-    # note: scaling this down because I removed dt from the FoI computation 
-    # in Transmission_Dynamics.jl, this was a carryover from when I was 
-    # implementing this as frequency-dependent transmission in a previous project
-    # in this implementation, the effect of the timestep is accounted for in the 
-    # contact rate, not in the force of infection. Including a constant of 0.1 
-    # here to make sure calibration is stable. 
-    
-    #old code: beta = R0/3.94 
-    # new code:
-    beta = (R0/3.94) * 0.1 # 2022 10 20
+    diseases() = new() #null constructor
 
-    #note: 3.94 is the scaling factor 
-    # determined during the calibration of the hotel quarantine model
-    #pre-dating this work 
-    # TODO: verify calibration 
-    p_asymp = 0.33
-    latent_period = dt
-    inc_mu = 1.62
-    inc_sig = 0.418
-    rec_min = 5.0
-    rec_max = 10.0
-    b_dispersion = 0.15
-    V_max = 7.0
-    inc_plat_fac = 0.1
-    rec_plat_fac = 0.0
-    #test sensitivity function parameters: 
-    c_lims = [1.0, 5.11]
-    b1_lims = [0.8, 2.31]
-    b2_lims = [1.26, 3.47]
-    b3_lims = [1.05, 1.14]
+end
 
-    disease_i = disease_params(
-        beta,
-        p_asymp, 
-        latent_period,
-        inc_mu,
-        inc_sig,
-        rec_min,
-        rec_max,
-        b_dispersion,
-        V_max,
-        inc_plat_fac,
-        rec_plat_fac,
-        disease_name,
-        c_lims,
-        b1_lims,
-        b2_lims,
-        b3_lims )
+function set_disease_dict!(diseases::Disease_T, config::Setup.Config_T)
 
-    diseases[disease_name] = disease_i
+    diseases.dict = Dict{String, Disease_T}() #[disease_name] = Delta_variant 
+
+    #TODO: parameters are still Delta variant- adjust for omicron. 
+    diseases.names = ["Default"]#["Delta Variant"]
+    diseases.n = length(disease_names) 
+
+    #NOTE: this is setup for multiple diseases, but only one is implemented. 
+    # the parameters below are fixed. For multistrain implementations, 
+    # TODO: this would need parameter vectors setup before the loop. 
+    for d = 1:n_diseases
+
+        disease_name = disease.names[d]
+
+        disease_i = disease_params()
+        set_disease_params_default!(disease_i, config::Setup.Config_T)
+        # any modifications to the parameters for different
+        # pathogens or strains would be made here. 
+
+        diseases.dict[disease_name] = disease_i
+
+    end
 
 end
 
@@ -456,4 +457,8 @@ function Efficacy_Death_Omicron(neuts::Float64)::Float64
     log10_neuts = log10(neuts)
     eff = 1.0 / (1.0 + exp(-1.0 * k *(log10_neuts - c50)))
     return eff 
+end
+
+
+
 end

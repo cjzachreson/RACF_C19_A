@@ -1,7 +1,15 @@
 
 
+module Networks_RACF
 
+using DataFrames
 
+abstract type Contact_T end 
+abstract type Edge_T end 
+abstract type E_list_T end 
+abstract type E_list_temporal_T end 
+abstract type N_list_T end 
+abstract type N_list_temporal_multigraph_T end 
 
 
 # contact structure for neighbour lists: 
@@ -195,5 +203,8 @@ function edges_equal(e1::Edge_T, e2::Edge_T)::Bool
     end
 
     return equal_vals 
+
+end
+
 
 end
