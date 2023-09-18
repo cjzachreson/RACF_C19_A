@@ -7,11 +7,6 @@ using DataFrames
 using CSV
 
 #abstract type definitions 
-abstract type Agent_T end
-abstract type Agents_T end 
-
-abstract type Room_T end 
-abstract type Rooms_T end 
 
 abstract type Config_T end
 abstract type Pop_Input_T end
