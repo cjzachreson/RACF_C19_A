@@ -1,8 +1,14 @@
 #Facility_structure.jl
 
-
+module Facility_Structure
 
 # define room structure: 
+
+using Main.Agents_RACF
+using Main.Networks_RACF
+
+abstract type Room_T end 
+abstract type Rooms_T end 
 
 mutable struct Room <: Room_T
 
@@ -42,7 +48,7 @@ end
 
 
 # Initialise rooms sturcture: 
-function populate_Rooms_from_Agents!(rooms::Rooms_T, agents::Agents_T)
+function populate_Rooms_from_Agents!(rooms::Rooms_T, agents::Agents_RACF.Agents_T)
 
 
     #identify number of days in roster 
@@ -138,7 +144,7 @@ end
 # modifies N_lists_in based on current room allocations 
 # can then call 'add_neighbours_from_N_list(agent, N_lists, agent_id) 
 # for each affected agent 
-function populate_N_lists_d_from_Rooms!(rooms::Rooms_T, N_lists_in::N_list_T, d::Int64)
+function populate_N_lists_d_from_Rooms!(rooms::Rooms_T, N_lists_in::Networks_RACF.N_list_T, d::Int64)
 
     # go back to multigraph system... 
     # currently N_lists is initialised as a weighted network, 
@@ -175,7 +181,7 @@ function populate_N_lists_d_from_Rooms!(rooms::Rooms_T, N_lists_in::N_list_T, d:
                         # contacts_a = agents.All[source_id].contacts[day_of_week]
                         # filter!((c->c.room_id).(contacts_a) .!= room_id, contacts_a) # this will modify the contacts to remove all those without the current room_id
                     else
-                        id_to_contacts[source_id] = Array{Contact_T, 1}()
+                        id_to_contacts[source_id] = Array{Networks_RACF.Contact_T, 1}()
                         push!(id_to_contacts[source_id], contact)
                     end 
 
@@ -186,7 +192,10 @@ function populate_N_lists_d_from_Rooms!(rooms::Rooms_T, N_lists_in::N_list_T, d:
 end
 
 
-function update_N_lists_d_from_Rooms!(rooms::Rooms_T, room_ids_to_update::Set{Int64}, N_lists_in::N_list_T, d::Int64)
+function update_N_lists_d_from_Rooms!(rooms::Rooms_T, 
+                                      room_ids_to_update::Set{Int64}, 
+                                      N_lists_in::Networks_RACF.N_list_T, 
+                                      d::Int64)
     #(Rooms, room_ids_to_update, N_list_d, day_of_week)
 
     # should go back to multigraph system... 
@@ -229,7 +238,7 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T, room_ids_to_update::Set{In
                     if haskey(id_to_contacts, source_id)
                         push!(id_to_contacts[source_id], contact) 
                     else
-                        id_to_contacts[source_id] = Array{Contact_T, 1}()
+                        id_to_contacts[source_id] = Array{Networks_RACF.Contact_T, 1}()
                         push!(id_to_contacts[source_id], contact)
                     end 
 
@@ -237,4 +246,7 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T, room_ids_to_update::Set{In
             end
         end
     end
+end
+
+
 end
