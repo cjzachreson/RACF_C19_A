@@ -6,7 +6,7 @@ module Diseases_RACF
 using Distributions
 using Random
 using Dates
-using Main.Setup # need to import configuration variables. 
+using Main.Setup_RACF # need to import configuration variables. 
 
 abstract type Disease_T end
 abstract type Diseases_T end 

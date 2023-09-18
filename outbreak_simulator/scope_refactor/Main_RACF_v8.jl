@@ -95,14 +95,20 @@ global output_dir_L2 = ""
 global output_dir_fac = ""
 
 
-include("./setup_RACF_v8.jl")
+include("./Setup_RACF_v8.jl")
 import .Setup
 
-include("./networks_RACF_v8.jl")
+include("./Networks_RACF_v8.jl")
 import .Networks_RACF
 
 include("./Diseases_RACF_v8.jl")
 import .Diseases_RACF
+
+include("./Agents_RACF_v8.jl")
+import .Agents_RACF
+
+include("./Facility_Structure.jl")
+import .Facility_Structure
 
 # define the main function 
 #TODO: this should be the run function, not the main function
@@ -119,9 +125,9 @@ function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
 
     #include("./Diseases_RACF.jl")
 
-    include("./Agents_RACF.jl")
+    #include("./Agents_RACF.jl")
 
-    include("./Facility_Structure.jl")
+    #include("./Facility_Structure.jl")
 
     include("./Transmission_Dynamics.jl")
 

@@ -1,6 +1,18 @@
 #agent structure type definiition: 
 # see setup for abstract type definitions
 
+module Agents_RACF
+
+using DataFrames 
+using Distributions
+
+using Main.Setup_RACF
+using Main.Networks_RACF
+using Main.Diseases_RACF
+
+abstract type Agent_T end
+abstract type Agents_T end 
+
 mutable struct Worker_Agent <: Agent_T
     id::Int64 #unique agent ID
     is_medical::Bool # Boolean flag, true means this is a medical worker
@@ -9,11 +21,11 @@ mutable struct Worker_Agent <: Agent_T
     n_rooms::Int64 # number of room-days serviced by this worker over a roster period
     
     ## ubiquitous parameters 
-    contacts::Dict{Int64, Array{Contact_T}} # maps day -> [target_id, weight, day]
+    contacts::Dict{Int64, Array{Networks_RACF.Contact_T}} # maps day -> [target_id, weight, day]
 
-    infections::Dict{String, Infection_T} # pathogen name  => infection
+    infections::Dict{String, Diseases_RACF.Infection_T} # pathogen name  => infection
     n_infections::Int64 #total number of times infected (all time)
-    immunity::Immunity_Profile_T # agent's immunity profile 
+    immunity::Diseases_RACF.Immunity_Profile_T # agent's immunity profile 
     t_detected::Float64 # time of most recent positive test
     t_removed::Float64 # positive if agent is removed from the facility (reversible)
 
@@ -27,10 +39,10 @@ mutable struct Worker_Agent <: Agent_T
     Dict{Int64, Array{Int64}}(), # rooms, instantiated as Dict, day => rooms. 
     0, #n_rooms::Int64
     ## ubiquitous agent parameteers 
-    Dict{Int64, Array{Contact_T}}(), #contacts::Dict{Int64, Array{contact_type}} #Dict allows indexing by day
-    Dict{String, Infection_T}(),# empty infection dict 
+    Dict{Int64, Array{Networks_RACF.Contact_T}}(), #contacts::Dict{Int64, Array{contact_type}} #Dict allows indexing by day
+    Dict{String, Diseases_RACF.Infection_T}(),# empty infection dict 
     0, #number of infections so far 
-    Immunity_Profile(), #initialise an empty immunity profile. 
+    Diseases_RACF.Immunity_Profile(), #initialise an empty immunity profile. 
     -1.0, # initialise test time to negative (no tests yet.)
     -1.0, #t_removed
     Array{Int64, 1}() # test_schedule 
@@ -45,11 +57,11 @@ mutable struct Resident_Agent <: Agent_T
     adl_needs::Bool # Boolean flag, true means this resident has high daily living needs
     room::Int64 # resident's room id
     
-    contacts::Dict{Int64, Array{Contact_T}} # maps day -> [target_id, day, weight]
+    contacts::Dict{Int64, Array{Networks_RACF.Contact_T}} # maps day -> [target_id, day, weight]
 
-    infections::Dict{String, Infection_T} # pathogen name  => infection
+    infections::Dict{String, Diseases_RACF.Infection_T} # pathogen name  => infection
     n_infections::Int64 #total number of times infected (all time)
-    immunity::Immunity_Profile_T # agent's immunity profile 
+    immunity::Diseases_RACF.Immunity_Profile_T # agent's immunity profile 
     t_detected::Float64 # time of most recent positive test
     t_removed::Float64 # positive if agent is removed from the facility (reversible)
 
@@ -60,10 +72,10 @@ mutable struct Resident_Agent <: Agent_T
     false, #beh_needs::Bool # Boolean flag, true means this resident has high behavioural needs
     false, #adl_needs::Bool # Boolean flag, true means this resident has high daily living needs
     0, #room::Int64 # resident's room id
-    Dict{Int64, Array{Contact_T}}(), #contacts::Dict{Int64, Array{contact_type}} # maps day -> [target_id, day, weight]
-    Dict{String, Infection_T}(),# empty infection dict 
+    Dict{Int64, Array{Networks_RACF.Contact_T}}(), #contacts::Dict{Int64, Array{contact_type}} # maps day -> [target_id, day, weight]
+    Dict{String, Diseases_RACF.Infection_T}(),# empty infection dict 
     0, #number of infections so far 
-    Immunity_Profile(), #initialise an empty immunity profile. 
+    Diseases_RACF.Immunity_Profile(), #initialise an empty immunity profile. 
     -1.0, # initialise test time to negative (no tests yet.)
     -1.0 #t_removed
     ) 
@@ -91,7 +103,8 @@ end
 # functions for property assignment from dataframe:
 
 # adds immunity status
-function initialise_immunity_status!(im::Immunity_Profile_T, agent_DF::DataFrame)
+function initialise_immunity_status!(im::Diseases_RACF.Immunity_Profile_T, 
+                                     agent_DF::DataFrame)
 
     #input is immunity status of agent i, and 
     # text dataframe of immunity status values from population
@@ -140,7 +153,9 @@ function initialise_immunity_status!(im::Immunity_Profile_T, agent_DF::DataFrame
 end
 
 #adds immunity status from distribution, rather than from file: 
-function initialise_immunity_status_from_pdist!(im::Immunity_Profile_T, pdist::Distribution)
+function initialise_immunity_status_from_pdist!(im::Diseases_RACF.Immunity_Profile_T, 
+                                                pdist::Distribution, 
+                                                config::Setup_RACF.Config_T)
 
     #input is immunity status of agent i, and 
     # text dataframe of immunity status values from population
@@ -160,18 +175,18 @@ function initialise_immunity_status_from_pdist!(im::Immunity_Profile_T, pdist::D
 
     if IMMUNITY
         # sample from population-specific neut distribution 
-        ln_neuts = rand(rng_immunity, pdist)
+        ln_neuts = rand(config.rng_immunity, pdist)
         neuts = exp(ln_neuts)
 
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Omicron"] = Efficacy_infection_Omicron(neuts)
+        im.protection_Infection["Omicron"] = Diseases_RACF.Efficacy_infection_Omicron(neuts)
         #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Omicron"] = Efficacy_Symptoms_Omicron(neuts)
+        im.protection_Symptoms["Omicron"] = Diseases_RACF.Efficacy_Symptoms_Omicron(neuts)
         #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Omicron"]  = Efficacy_OT_Omicron(neuts)
+        im.protection_Transmission["Omicron"]  = Diseases_RACF.Efficacy_OT_Omicron(neuts)
         #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Omicron"] = Efficacy_Death_Omicron(neuts)
+        im.protection_Death["Omicron"] = Diseases_RACF.Efficacy_Death_Omicron(neuts)
     else
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
@@ -189,7 +204,10 @@ function initialise_immunity_status_from_pdist!(im::Immunity_Profile_T, pdist::D
 
 end
 
-function add_neighbours_from_N_list_v2!(a::Agent_T, d::Int64, id_to_contacts::Dict{Int64, Array{Contact_T, 1}}, id_i::Int64)
+function add_neighbours_from_N_list_v2!(a::Agent_T, 
+                                        d::Int64, 
+                                        id_to_contacts::Dict{Int64, Array{Networks_RACF.Contact_T, 1}},
+                                        id_i::Int64)
     #parse contacts and populate: 
     if haskey(id_to_contacts, id_i) 
         #normally not necessary to check the id_i key, 
@@ -202,7 +220,8 @@ function add_neighbours_from_N_list_v2!(a::Agent_T, d::Int64, id_to_contacts::Di
     end
 end
 
-function assign_contacts!(agents::Agents_T, N_lists_TMG::N_list_temporal_multigraph_T)
+function assign_contacts!(agents::Agents_T, 
+                          N_lists_TMG::Networks_RACF.N_list_temporal_multigraph_T)
 
     for (d, N_list) in N_lists_TMG.day_to_N_list
 
@@ -214,7 +233,9 @@ function assign_contacts!(agents::Agents_T, N_lists_TMG::N_list_temporal_multigr
     end
 end
 
-function assign_todays_contacts!(agents::Agents_T, N_lists_TMG::N_list_temporal_multigraph_T, day_of_week::Int64) 
+function assign_todays_contacts!(agents::Agents_T, 
+                                 N_lists_TMG::Networks_RACF.N_list_temporal_multigraph_T, 
+                                 day_of_week::Int64) 
 
     N_list = N_lists_TMG.day_to_N_list[day_of_week]
     id_to_contacts = N_list.id_to_contacts
@@ -225,7 +246,8 @@ function assign_todays_contacts!(agents::Agents_T, N_lists_TMG::N_list_temporal_
 end
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of worker agents [id -> agent object]
-function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T}, workers_DF::DataFrame)#, N_lists)  
+function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T}, 
+                                          workers_DF::DataFrame)#, N_lists)  
     
     n_workers = size(workers_DF, 1)
     
@@ -265,7 +287,8 @@ end
 
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of resident agents [id -> agent object]
-function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T}, residents_DF)#, N_lists)
+function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T}, 
+                                            residents_DF::DataFrame)#, N_lists)
     
     n_residents = size(residents_DF, 1)
     
@@ -296,7 +319,10 @@ end
 
 #2022 09 25, new version of populate_residents that takes immunity status from a distribution 
 # instead of taking it from the input file. 
-function populate_workers_from_DataFrame_imDist!(workers_out::Dict{Int64, Agent_T}, workers_DF::DataFrame, neut_dist::Distribution)#, N_lists)  
+function populate_workers_from_DataFrame_imDist!(workers_out::Dict{Int64, Agent_T}, 
+                                                 workers_DF::DataFrame, 
+                                                 neut_dist::Distribution,
+                                                 config::Setup_RACF.Config_T)#, N_lists)  
     
     n_workers = size(workers_DF, 1)
     
@@ -328,13 +354,16 @@ function populate_workers_from_DataFrame_imDist!(workers_out::Dict{Int64, Agent_
     
         #add_neighbours_from_N_list!(workers_out[id_i], N_lists, id_i)
     
-        initialise_immunity_status_from_pdist!(workers_out[id_i].immunity, neut_dist)
+        initialise_immunity_status_from_pdist!(workers_out[id_i].immunity, neut_dist, config)
     
     end
 
 end
 
-function populate_residents_from_DataFrame_imDist!(residents_out::Dict{Int64, Agent_T}, residents_DF, neut_dist::Distribution)#, N_lists)
+function populate_residents_from_DataFrame_imDist!(residents_out::Dict{Int64, Agent_T}, 
+                                                   residents_DF::DataFrame, 
+                                                   neut_dist::Distribution,
+                                                   config::Setup_RACF.Config_T)#, N_lists)
     
     n_residents = size(residents_DF, 1)
     
@@ -358,7 +387,7 @@ function populate_residents_from_DataFrame_imDist!(residents_out::Dict{Int64, Ag
         #add_neighbours_from_N_list!(residents_out[id_i], N_lists, id_i)
 
         #add immunity status: 
-        initialise_immunity_status_from_pdist!(residents_out[id_i].immunity, neut_dist)
+        initialise_immunity_status_from_pdist!(residents_out[id_i].immunity, neut_dist, config)
 
     end
 end
@@ -444,7 +473,7 @@ function pairwise_weights!(A::Agents_T)
     end
 end
 
-function pairwise_weights_d!(A::Agents_T, day_of_week)
+function pairwise_weights_d!(A::Agents_T, day_of_week::Int64)
     for (id, source) in A.All
         c_set = source.contacts # Dict::{day::int64, contacts::Array{contact_type}}
         # iterate through days
@@ -488,7 +517,9 @@ function pairwise_weights_d!(A::Agents_T, day_of_week)
 end
 
 
-function add_source_edges_to_E_list!(elist::E_list_T, a::Agent_T, contacts::Array{Contact_T})
+function add_source_edges_to_E_list!(elist::Networks_RACF.E_list_T, 
+                                     a::Agent_T, 
+                                     contacts::Array{Networks_RACF.Contact_T})
     source_id = a.id
     
     for c in contacts 
@@ -502,7 +533,8 @@ function add_source_edges_to_E_list!(elist::E_list_T, a::Agent_T, contacts::Arra
 end
 
 
-function fill_E_lists_all!(elist_t::E_list_temporal_T, A::Agents_T)
+function fill_E_lists_all!(elist_t::Networks_RACF.E_list_temporal_T, 
+                           A::Agents_T)
 
     # iterate through agents and contacts
     for (id, a) in A.All
@@ -607,6 +639,4 @@ end
 
 
 
-# recovery
-
-
+end
