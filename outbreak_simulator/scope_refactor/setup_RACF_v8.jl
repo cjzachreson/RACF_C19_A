@@ -62,6 +62,7 @@ mutable struct run_configuration <: Config_T
 
     outbreak_control::Bool
     active_outbreak::Bool
+    PPE_available::Bool
 
     log_mu_res::Float64
     log_sig_res::Float64
@@ -77,6 +78,12 @@ mutable struct run_configuration <: Config_T
     p_test_per_day_workers_outbreak::Float64
     p_test_per_day_residents_outbreak::Float64
     p_test_if_symptomatic::Float64
+
+    PPE_efficacy_relative_to_default::Float64
+
+    eff_IC_worker_worker_Default::Float64
+    eff_IC_worker_resident_Default::Float64
+    eff_IC_resident_resident_Default::Float64
 
     eff_IC_worker_worker::Float64
     eff_IC_worker_resident::Float64
@@ -278,6 +285,12 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.active_outbreak = active_outbreak
 
+        PPE_available = false #availability of PPE is initialised to false, introduced after outbreak is declared
+            description = "boolean flag false PPE is not yet available"
+            config_line = (@Name(PPE_available) * ", " * description * ", " * "$PPE_available" )
+            config_str = config_str*config_line*"\n"
+            config.PPE_available = PPE_available
+
     config_str = config_str*"\n"*"***immunity distribution***\n"
 
         log_mu_res = 0.0 #default 
@@ -373,23 +386,47 @@ function setup_run_default!(config::Config_T, data_dirname::String)
         #efficacy of infection control for pairwise contacts: 
         # triggered by active outbreaks 
         #NOTE: including global modifier (2022 10 24, range [0, 1], [set max for each pairwise efficacy value here])
-        eff_IC_worker_worker = 0.5 #* PPE_efficacy_relative_to_default
-            description = "between workers"
+        PPE_efficacy_relative_to_default = 1.0
+            description = "factor by which default PPE efficacy values are multiplied (must be leq 1)"
+            config_line = (@Name(PPE_efficacy_relative_to_default) * ", " * description * ", " * "$PPE_efficacy_relative_to_default" )
+            config_str = config_str*config_line*"\n"
+            config.PPE_efficacy_relative_to_default = PPE_efficacy_relative_to_default
+        
+        eff_IC_worker_worker_Default = 0.5
+            description = "default PPE efficacy between workers"
+            config_line = (@Name(eff_IC_worker_worker_Default) * ", " * description * ", " * "$eff_IC_worker_worker_Default" )
+            config_str = config_str*config_line*"\n"
+            config.eff_IC_worker_worker_Default = eff_IC_worker_worker_Default
+
+        eff_IC_worker_resident_Default = 0.9
+            description = "default PPE efficacy between workers and residents"
+            config_line = (@Name(eff_IC_worker_resident_Default) * ", " * description * ", " * "$eff_IC_worker_resident_Default" )
+            config_str = config_str*config_line*"\n"
+            config.eff_IC_worker_resident_Default = eff_IC_worker_resident_Default
+
+        eff_IC_resident_resident_Default = 0.2
+            description = "default PPE efficacy between residents and residents"
+            config_line = (@Name(eff_IC_resident_resident_Default) * ", " * description * ", " * "$eff_IC_resident_resident_Default" )
+            config_str = config_str*config_line*"\n"
+            config.eff_IC_resident_resident_Default = eff_IC_resident_resident_Default
+
+        eff_IC_worker_worker = config.eff_IC_worker_worker_Default * config.PPE_efficacy_relative_to_default
+            description = "PPE efficacy between workers"
             config_line = (@Name(eff_IC_worker_worker) * ", " * description * ", " * "$eff_IC_worker_worker" )
             config_str = config_str*config_line*"\n"
             config.eff_IC_worker_worker = eff_IC_worker_worker
 
-        eff_IC_worker_resident = 0.9 #* PPE_efficacy_relative_to_default
-            description = "between workers and residents"
+        eff_IC_worker_resident = config.eff_IC_worker_resident_Default * config.PPE_efficacy_relative_to_default
+            description = "PPE efficacy between workers and residents"
             config_line = (@Name(eff_IC_worker_resident) * ", " * description * ", " * "$eff_IC_worker_resident" )
             config_str = config_str*config_line*"\n"
             config.eff_IC_worker_resident = eff_IC_worker_resident
 
-        eff_IC_resident_resident = 0.2 #* PPE_efficacy_relative_to_default
-        description = "between residents and residents"
-        config_line = (@Name(eff_IC_resident_resident) * ", " * description * ", " * "$eff_IC_resident_resident" )
-        config_str = config_str*config_line*"\n"
-        config.eff_IC_resident_resident = eff_IC_resident_resident
+        eff_IC_resident_resident = config.eff_IC_resident_resident_Default * config.PPE_efficacy_relative_to_default
+            description = "PPE efficacy between residents and residents"
+            config_line = (@Name(eff_IC_resident_resident) * ", " * description * ", " * "$eff_IC_resident_resident" )
+            config_str = config_str*config_line*"\n"
+            config.eff_IC_resident_resident = eff_IC_resident_resident
 
 
     config_str = config_str*"\n"*"*** outbreak response *** \n"
@@ -474,7 +511,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
 
 end
 
-function update_config_record!(config::Config_T)
+function update_config!(config::Config_T)
 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
 
@@ -614,6 +651,11 @@ function update_config_record!(config::Config_T)
             config_line = (@Name(active_outbreak) * ", " * description * ", " * "$active_outbreak" )
             config_str = config_str*config_line*"\n"
 
+        PPE_available = config.PPE_available #availability of PPE is initialised to false, introduced after outbreak is declared
+            description = "boolean flag false PPE is not yet available"
+            config_line = (@Name(PPE_available) * ", " * description * ", " * "$PPE_available" )
+            config_str = config_str*config_line*"\n"
+
     config_str = config_str*"\n"*"***immunity distribution***\n"
 
         log_mu_res = config.log_mu_res
@@ -704,22 +746,32 @@ function update_config_record!(config::Config_T)
         #efficacy of infection control for pairwise contacts: 
         # triggered by active outbreaks 
         #NOTE: including global modifier (2022 10 24, range [0, 1], [set max for each pairwise efficacy value here])
-        eff_IC_worker_worker = config.eff_IC_worker_worker
+        PPE_efficacy_relative_to_default = config.PPE_efficacy_relative_to_default
+            description = "factor by which default PPE efficacy values are multiplied (must be leq 1)"
+            config_line = (@Name(PPE_efficacy_relative_to_default) * ", " * description * ", " * "$PPE_efficacy_relative_to_default" )
+            config_str = config_str*config_line*"\n"
+        
+        # recalculate these 
+
+        eff_IC_worker_worker = config.eff_IC_worker_worker_Default *= PPE_efficacy_relative_to_default
             description = "between workers"
             config_line = (@Name(eff_IC_worker_worker) * ", " * description * ", " * "$eff_IC_worker_worker" )
             config_str = config_str*config_line*"\n"
+            config.eff_IC_worker_worker = eff_IC_worker_worker
             
 
-        eff_IC_worker_resident = config.eff_IC_worker_resident
+        eff_IC_worker_resident = config.eff_IC_worker_resident_Default  *= PPE_efficacy_relative_to_default
             description = "between workers and residents"
             config_line = (@Name(eff_IC_worker_resident) * ", " * description * ", " * "$eff_IC_worker_resident" )
             config_str = config_str*config_line*"\n"
+            config.eff_IC_worker_resident = eff_IC_worker_resident
             
 
-        eff_IC_resident_resident = config.eff_IC_resident_resident
+        eff_IC_resident_resident = config.eff_IC_resident_resident_Default *= PPE_efficacy_relative_to_default
             description = "between residents and residents"
             config_line = (@Name(eff_IC_resident_resident) * ", " * description * ", " * "$eff_IC_resident_resident" )
             config_str = config_str*config_line*"\n"
+            config.eff_IC_resident_resident = eff_IC_resident_resident
         
 
 

@@ -64,7 +64,7 @@ struct disease_params <: Disease_T
 end
 
 # default parameters are delta-variant like
-function set_disease_params_default!(params::Disease_T, config::Setup.Config_T)
+function set_disease_params_default!(params::Disease_T, config::Setup_RACF.Config_T)
 
     # initialise disease (Delta variant, SARS-CoV-2) 
     # TODO: update for omicron
@@ -170,7 +170,7 @@ end
 
 function set_infection_default!(infection::Infection_T, 
                                 pathogen::Disease_T, 
-                                config::Setup.Config_T)
+                                config::Setup_RACF.Config_T)
     ## pathogen reference
     infection.pathogen = pathogen
     ## name of pathogen 
@@ -337,7 +337,7 @@ mutable struct diseases <: Diseases_T
 
 end
 
-function set_disease_dict!(diseases::Disease_T, config::Setup.Config_T)
+function set_disease_dict!(diseases::Disease_T, config::Setup_RACF.Config_T)
 
     diseases.dict = Dict{String, Disease_T}() #[disease_name] = Delta_variant 
 
@@ -353,7 +353,7 @@ function set_disease_dict!(diseases::Disease_T, config::Setup.Config_T)
         disease_name = disease.names[d]
 
         disease_i = disease_params()
-        set_disease_params_default!(disease_i, config::Setup.Config_T)
+        set_disease_params_default!(disease_i, config::Setup_RACF.Config_T)
         # any modifications to the parameters for different
         # pathogens or strains would be made here. 
 

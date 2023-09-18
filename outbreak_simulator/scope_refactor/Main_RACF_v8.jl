@@ -29,72 +29,6 @@
 
 include("./header_RACF.jl")
 
-
-global output_dir_L1 = "" #placeholder
-
-# DEFINE RANGE OF CONTROL PARAMETERS: 
-
-#vaccine-acquired immunity: 
-global immunity_states = [true]
-
-# delay values in days 
-global delay_vals = Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
-# compliance with scheduled testing (workers only)
-global test_compliance = Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
-
-# global modulation of PPE efficacy relative to default (NOTE: range [0.0, 1.0], 1.0 is default value, all other values reduce from default.)
-global PPE_efficacy_scalers = Float64[1.0]
-# placeholder
-global PPE_efficacy_relative_to_default = 1.0
-
-global n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
-# for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
-## 
-global delay_val_i = 0 # placeholder these get re-valued on loop 
-global test_compliance_j = 1.0 # these get re-valued on loop 
-# NOTE: test compliance parameter is implemented in the setup_RACF.jl script
-global PPE_AVAILABLE = false #this gets toggled on after delay. 
-
-#NOTE: moving these flags from setup to preamble. 
-global IMMUNITY = true #placeholder 
-# determines whether or not to draw immunity info from file or from a pre-defined distribution 
-global IMMUNITY_FROM_DIST = true
-global NETWORK_TEST = false 
-
-global UNIFORM_IMMUNITY = false 
-
-# 2022 09 19 : tests 
-# (2) check that no agents who are removed are tested [x]
-# iterate through outbreak-specific input files: 
-
-global data_dir_L1 = pwd() #C:\\Users\\czachreson\\Desktop\\policy_work\\RACF_2022\\RACF_code\\population_generator\\2022_09_02"
-
-global data_dir_L2 = "input\\hypotheticals"#"\\network_generator_step_4\\agents_OB_model_ready_exemplar\\2022_09_02"
-
-# list of facilitis to iterate through
-global fac_list_dir = "$data_dir_L1\\$data_dir_L2"
-global fac_list_fname = "$fac_list_dir\\hypothetical_facility_characteristics.csv"
-global fac_list = DataFrame(CSV.File(fac_list_fname, delim = ","))
-global n_populations = size(fac_list, 1)
-
-#initialise output file strings, these 
-# get re-valued in the scenario loop. 
-global delay_label = ""
-global t_str = ""
-global test_compliance_label = ""
-global PPE_efficacy_label = ""
-
-#more globals for iterating through facilitiees
-# and generating input/output directory names 
-global fac_i = 0 
-global fac_label = ""
-
-global data_dirname = ""
-global output_dir_L1 = ""
-global output_dir_L2 = ""
-global output_dir_fac = ""
-
-
 include("./Setup_RACF_v8.jl")
 import .Setup
 
@@ -107,12 +41,17 @@ import .Diseases_RACF
 include("./Agents_RACF_v8.jl")
 import .Agents_RACF
 
-include("./Facility_Structure.jl")
+include("./Facility_Structure_v8.jl")
 import .Facility_Structure
+
+include("./Transmission_Dynamics_v8.jl")
+import .Transmission_Dynamics
+
+global NETWORK_TEST = false 
 
 # define the main function 
 #TODO: this should be the run function, not the main function
-function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
+function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbreaks_total::Int64)
 
 
     
@@ -129,7 +68,7 @@ function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
 
     #include("./Facility_Structure.jl")
 
-    include("./Transmission_Dynamics.jl")
+    #include("./Transmission_Dynamics.jl")
 
     include("./Outbreak_Response.jl")
     
@@ -397,7 +336,7 @@ function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
 
         # 2022 09 23 : including a delay between outbreak declaration and the implementation of measures 
         time_since_outbreak_declared = 0
-        global PPE_AVAILABLE = false #this gets toggled on after delay. 
+        config.PPE_available = false #this gets toggled on after delay. 
 
 
 
@@ -705,93 +644,133 @@ function main(config::Setup.Config_T, pop::Setup.Pop_Input_T)
 
 end
 
+function main()
+
+    # loop through exemplars and run the simulations: 
 
 
-# loop through exemplars and run the simulations: 
+    output_dir_L1 = "" #placeholder
 
-for im in immunity_states 
+    # DEFINE RANGE OF CONTROL PARAMETERS: 
+    
+    #vaccine-acquired immunity: 
+    immunity_states = [true]
+    
+    # delay values in days 
+    delay_vals = Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
+    # compliance with scheduled testing (workers only)
+    test_compliance = Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
+    
+    # global modulation of PPE efficacy relative to default (NOTE: range [0.0, 1.0], 1.0 is default value, all other values reduce from default.)
+    PPE_efficacy_scalers = Float64[1.0]
+    
+    n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
+    # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
+    
+    # 2022 09 19 : tests 
+    # (2) check that no agents who are removed are tested [x]
+    # iterate through outbreak-specific input files: 
+    
+    data_dir_L1 = pwd() #C:\\Users\\czachreson\\Desktop\\policy_work\\RACF_2022\\RACF_code\\population_generator\\2022_09_02"
+    
+    data_dir_L2 = "input\\hypotheticals"#"\\network_generator_step_4\\agents_OB_model_ready_exemplar\\2022_09_02"
+    
+    # list of facilitis to iterate through
+    fac_list_dir = "$data_dir_L1\\$data_dir_L2"
+    fac_list_fname = "$fac_list_dir\\hypothetical_facility_characteristics.csv"
+    fac_list = DataFrame(CSV.File(fac_list_fname, delim = ","))
+    n_populations = size(fac_list, 1)
 
-    global IMMUNITY = im
 
-    for i in 1:n_populations #facility indices
+    for im in immunity_states 
 
-        global fac_i = i 
-       
-        global fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
+        #global IMMUNITY = im
+
+        for i in 1:n_populations #facility indices
+
+            fac_i = i 
         
-        global data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$fac_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
+            fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
+            
+            data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$fac_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
 
 
-        if !ispath(data_dirname)
-            continue 
-        end
+            if !ispath(data_dirname)
+                continue 
+            end
 
-        if IMMUNITY
-            global immunity_label = "immunity_on"
-        else
-            global immunity_label = "immunity_off"
-        end
+            if im
+                immunity_label = "immunity_on"
+            else
+                immunity_label = "immunity_off"
+            end
 
-        global output_dir_L1 = pwd() * "\\output_v7_test\\$immunity_label\\$fac_label"
-        if !ispath(output_dir_L1)
-            mkpath(output_dir_L1)
-        end
-
-
-        for (d_i) in delay_vals 
-
-            global delay_val_i = d_i
-
-            for (t_j) in test_compliance
-
-                global test_compliance_j = t_j
-
-                for (e_i) in PPE_efficacy_scalers
-                    
-                    global PPE_efficacy_relative_to_default = e_i
-
-                    global delay_label = "response_delay_$delay_val_i"
-                    global t_str = replace("$test_compliance_j", "."=> "p")
-                    global test_compliance_label = "test_compliance_$t_str"
-                    global e_str = replace("$PPE_efficacy_relative_to_default", "." => "p")
-                    global PPE_efficacy_label = "PPE_efficacy_$e_str"
+            output_dir_L1 = pwd() * "\\output_v8_test\\$immunity_label\\$fac_label"
+            if !ispath(output_dir_L1)
+                mkpath(output_dir_L1)
+            end
 
 
-                    global output_dir_L2 = "$delay_label\\$test_compliance_label"
-                    global output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
-                    if !ispath(output_dir_fac)
-                        mkpath(output_dir_fac)
+            for (d_i) in delay_vals 
+
+                delay_val_i = d_i
+
+                for (t_j) in test_compliance
+
+                    test_compliance_j = t_j
+
+                    for (e_i) in PPE_efficacy_scalers
+                        
+                        PPE_efficacy_relative_to_default = e_i
+
+                        delay_label = "response_delay_$delay_val_i"
+                        t_str = replace("$test_compliance_j", "."=> "p")
+                        test_compliance_label = "test_compliance_$t_str"
+                        e_str = replace("$PPE_efficacy_relative_to_default", "." => "p")
+                        PPE_efficacy_label = "PPE_efficacy_$e_str"
+
+
+                        output_dir_L2 = "$delay_label\\$test_compliance_label\\$PPE_efficacy_label"
+                        output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
+                        if !ispath(output_dir_fac)
+                            mkpath(output_dir_fac)
+                        end
+
+                        config_run = Setup_RACF.run_configuration()
+                        Setup_RACF.setup_run_default!(config_run, data_dirname)
+
+                        # modify any of the default config
+                        # parameters that are adjusted by the run loop
+                        # globals.
+                        
+                        Setup_RACF.set_immunity_dist!(config_run)
+                        
+                        config_run.immunity = im
+                        config_run.PPE_available = false
+                        config_run.delay_infection_control = delay_val_i
+                        config_run.test_compliance_staff = test_compliance_j
+
+                        config_run.eff_IC_resident_resident *= PPE_efficacy_relative_to_default
+                        config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
+                        config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
+
+                        #update the config parameters (ensuring any interdependent parameters are changed): 
+
+                        Setup_RACF.update_config!(config_run)
+
+                        #write record of run configuration 
+                        Setup_RACF.write_config_details(config_run, output_dir_fac)
+
+                        pop_run = Setup_RACF.population_input()
+                        Setup_RACF.read_in_population_data!(pop_run, config_run)
+
+
+                        run(config_run, pop_run, n_outbreaks_tot)
                     end
 
-                    config_run = Setup.run_configuration()
-                    Setup.setup_run_default!(config_run, data_dirname)
-
-                    # modify any of the default config
-                    # parameters that are adjusted by the run loop
-                    # globals.
-                    
-                    Setup.set_immunity_dist!(config_run)
-                    config_run.delay_infection_control = delay_val_i
-                    config_run.test_compliance_staff = test_compliance_j
-                    config_run.eff_IC_resident_resident *= PPE_efficacy_relative_to_default
-                    config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
-                    config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
-
-                    #update the config string: 
-
-                    Setup.update_config_record!(config_run)
-
-                    #write record of run configuration 
-                    Setup.write_config_details(config_run, output_dir_fac)
-
-                    pop_run = Setup.population_input()
-                    Setup.read_in_population_data!(pop_run, config_run)
-
-
-                    main(config_run, pop_run)
                 end
-
             end
         end
     end
+
 end

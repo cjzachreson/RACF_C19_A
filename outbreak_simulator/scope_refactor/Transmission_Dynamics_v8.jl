@@ -1,5 +1,15 @@
 module Transmission_Dynamics
 
+using DataFrames
+using Random
+using Distributions
+
+using Main.Setup_RACF
+using Main.Networks_RACF
+using Main.Diseases_RACF
+using Main.Agents_RACF
+
+
 
 
 # infectious disease dynamics (functions)
@@ -8,11 +18,11 @@ module Transmission_Dynamics
 
 # infection: 
 
-function infect_agent!(a::Agent_T, 
+function infect_agent!(a::Agents_RACF.Agent_T, 
                        pathogen::Diseases_RACF.Disease_T, 
                        time_of_exposure::Float64, 
                        infected_agents::Dict{Int64, Float64},
-                       config::Setup.Config_T)
+                       config::Setup_RACF.Config_T)
 
     a.n_infections += 1
 
@@ -39,7 +49,7 @@ function infect_agent!(a::Agent_T,
     infected_agents[a.id] = time_of_exposure #updating dictionary of infected agents 
 end
 
-function is_infected(a::Agent_T, p_name::String)::Bool
+function is_infected(a::Agents_RACF.Agent_T, p_name::String)::Bool
     if haskey(a.infections, p_name)
         return true
     else
@@ -49,7 +59,11 @@ end
 
 # pairwise multistrain transmission: 
 # TODO: think about pairwise vs. target-integrated transmission... 
-function transmit_infection!(source::Agent_T, target::Agent_T, time_of_exposure::Float64, infected_agents::Dict{Int64, Float64})::Bool
+function transmit_infection!(source::Agents_RACF.Agent_T, 
+                             target::Agents_RACF.Agent_T, 
+                             time_of_exposure::Float64, 
+                             infected_agents::Dict{Int64, Float64},
+                             config::Setup_RACF.Config_T)::Bool
 
     infection_occurred = false
 
@@ -95,8 +109,11 @@ function transmit_infection!(source::Agent_T, target::Agent_T, time_of_exposure:
                  #   println("* PROBLEM with FOI compuation  *")
                 #end
                 
-                if rand(rng_infections) < p_trans
-                    infect_agent!(target, infection.pathogen, time_of_exposure, infected_agents)
+                if rand(config.rng_infections) < p_trans
+                    infect_agent!(target, infection.pathogen, time_of_exposure, infected_agents, config)
+
+
+                    
 
                     #if target.id == 119
                      #   println("**agent $(source.id) infected agent $(target.id) with $pathogen_name with probability $p_trans")
@@ -111,7 +128,12 @@ function transmit_infection!(source::Agent_T, target::Agent_T, time_of_exposure:
     return infection_occurred
 end
 
-function transmit_infection_AOB!(source::Agent_T, target::Agent_T, time_of_exposure::Float64, infected_agents::Dict{Int64, Float64})::Bool
+#AOB: 'active outbreak'
+function transmit_infection_AOB!(source::Agents_RACF.Agent_T, 
+                                 target::Agents_RACF.Agent_T, 
+                                 time_of_exposure::Float64, 
+                                 infected_agents::Dict{Int64, Float64},
+                                 config::Setup_RACF.Config_T)::Bool
 
     infection_occurred = false
 
@@ -168,8 +190,8 @@ function transmit_infection_AOB!(source::Agent_T, target::Agent_T, time_of_expos
                  #   println("* PROBLEM with FOI compuation  *")
                 #end
                 
-                if rand(rng_infections) < p_trans
-                    infect_agent!(target, infection.pathogen, time_of_exposure, infected_agents)
+                if rand(config.rng_infections) < p_trans
+                    infect_agent!(target, infection.pathogen, time_of_exposure, infected_agents, config)
                     #println("**agent $(source.id) infected agent $(target.id) with $pathogen_name")
                     infection_occurred =  true
                 end
@@ -183,7 +205,7 @@ end
 
 
 # infect index case
-function select_random_general_staff(agents::Agents_T, day::Int64)::Int64
+function select_random_general_staff(agents::Agents_RACF.Agents_T, day::Int64)::Int64
 
     ids = collect(keys(agents.workers_G))
     
@@ -211,7 +233,7 @@ function select_random_resident(agents)::Int64
 
 end
 
-function select_random_worker(agents::Agents_T, day::Int64)::Int64
+function select_random_worker(agents::Agents_RACF.Agents_T, day::Int64)::Int64
 
     ids_g = collect(keys(agents.workers_G))
     ids_m = collect(keys(agents.workers_M))
@@ -238,7 +260,7 @@ end
 # this ensures that p(index case is worker) = p(worker), and that 
 # the definition of 'outbreak' doesn't change (i.e., the outbreak simulation)
 # begins when the facility is exposed. 
-function select_random_agent(agents::Agents_T, day::Int64)::Int64
+function select_random_agent(agents::Agents_RACF.Agents_T, day::Int64)::Int64
 
     ids = collect(keys(agents.All))
     index_case = sample(rng_infections, ids)
@@ -256,7 +278,7 @@ end
 
 # update agent infections 
 # NOTE: this function uses the global parameter dt. 
-function update_infections!(agents::Agents_T, infected_agents::Dict{Int64, Float64})
+function update_infections!(agents::Agents_RACF.Agents_T, infected_agents::Dict{Int64, Float64})
 
     agents_fully_recovered = []
     for (id_i, t_inf) in infected_agents
@@ -303,11 +325,12 @@ end
 
 
 # sample infectious contacts (network-based transmission)
-function compute_transmission!(all_transmissions::DataFrame, infected_agents:: Dict{Int64, Float64}, agents::Agents_T,
+function compute_transmission!(all_transmissions::DataFrame, infected_agents:: Dict{Int64, Float64}, agents::Agents_RACF.Agents_T,
                                day_of_week::Int64, w_tot_d::Dict{Int64, Float64}, 
-                               contact_rate::Float64, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64, t::Float64)
+                               contact_rate::Float64, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64, t::Float64,
+                               config::Setup_RACF.Config_T)
 
-    E_list_infectious_t = E_list()
+    E_list_infectious_t = Networks_RACF.E_list()
     #iterate over infected agents and add edges to infectious E_list
     infected_resident_ids = Vector{Int64}() # for background contact sampling 
     for (id, t_inf) in infected_agents
@@ -319,7 +342,7 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
                 # this should now be fixed 
             end 
 
-            active_contacts = Array{Contact_T, 1}()
+            active_contacts = Array{Networks_RACF.Contact_T, 1}()
             for c in a.contacts[day_of_week]
                 push!(active_contacts, c) 
                 # active contacts will include same-room resident contacts and any 
@@ -333,14 +356,14 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
             #    println("check here")
             #end
 
-            add_source_edges_to_E_list!(E_list_infectious_t, a, active_contacts)#a.contacts[day_of_week])
+            Agents_RACF.add_source_edges_to_E_list!(E_list_infectious_t, a, active_contacts)#a.contacts[day_of_week])
         end
     end
 
-    weights_infectious_edges_t = compile_weights( E_list_infectious_t )
+    weights_infectious_edges_t = Networks_RACF.compile_weights( E_list_infectious_t )
 
     #sum weights of infected edges
-    w_infected = sum_edge_weights_EList(E_list_infectious_t)
+    w_infected = Networks_RACF.sum_edge_weights_EList(E_list_infectious_t)
     prop_infected = w_infected / w_tot_d[day_of_week]
 
     # n infectious edges to sample: 
@@ -348,13 +371,18 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
     # Poisson(net contact rate * prop_infected * dt) 
     infectious_contact_rate = contact_rate * prop_infected
     dist = Poisson(infectious_contact_rate)
-    n_to_sample = rand(rng_contacts, dist)
+    n_to_sample = rand(config.rng_contacts, dist)
 
-    edges_to_evaluate = sample_E_list(E_list_infectious_t, 
-                                      n_to_sample, 
-                                      weights_infectious_edges_t)
+    edges_to_evaluate = Networks_RACF.sample_E_list(E_list_infectious_t, 
+                                                    n_to_sample, 
+                                                    weights_infectious_edges_t)
     
-    add_background_contacts!(edges_to_evaluate, infected_resident_ids, agents, bkg_contact_rate, bkg_contact_rate_iso )
+    add_background_contacts!(edges_to_evaluate, 
+                             infected_resident_ids, 
+                             agents, 
+                             bkg_contact_rate, 
+                             bkg_contact_rate_iso,
+                             config )
     
     
                                       #= some debugging printouts
@@ -380,11 +408,11 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
         target = agents.All[e.target_id]
 
         # NOTE: adding PPE flag to this condition (2022 09 23)
-        if ( ACTIVE_OUTBREAK && OUTBREAK_CONTROL && PPE_AVAILABLE) 
+        if ( config.active_outbreak && config.outbreak_control && config.PPE_available) 
             
-            transmission_occurred = transmit_infection_AOB!(source, target, t, infected_agents)
+            transmission_occurred = transmit_infection_AOB!(source, target, t, infected_agents, config)
         else
-            transmission_occurred = transmit_infection!(source, target, t, infected_agents)
+            transmission_occurred = transmit_infection!(source, target, t, infected_agents, config)
         end
        
         if transmission_occurred
@@ -404,7 +432,8 @@ end
 
 
 # testing utility: 
-function test_contacts(edges_to_evaluate::E_list_T, agents::Agents_T)::Bool
+function test_contacts(edges_to_evaluate::Networks_RACF.E_list_T, 
+                       agents::Agents_RACF.Agents_T)::Bool
 
     test_flag = true 
 
@@ -415,7 +444,7 @@ function test_contacts(edges_to_evaluate::E_list_T, agents::Agents_T)::Bool
         
         # tests: 
         #(1) is source infectious? 
-        if !is_infected(s, "Omicron")
+        if !is_infected(s, "Default")
             println("agent $(s.id) is trying to infect agent $(t.id), but $(s.id) is not infected")
             test_flag = false 
         end
@@ -439,7 +468,12 @@ function test_contacts(edges_to_evaluate::E_list_T, agents::Agents_T)::Bool
 end
 
 
-function add_background_contacts!(edges_out::E_list_T, source_ids::Vector{Int64}, agents::Agents_T, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64)
+function add_background_contacts!(edges_out::Networks_RACF.E_list_T, 
+                                  source_ids::Vector{Int64}, 
+                                  agents::Agents_RACF.Agents_T, 
+                                  bkg_contact_rate::Float64, 
+                                  bkg_contact_rate_iso::Float64,
+                                  config::Setup_RACF.Config_T)
 
     dist = Poisson(bkg_contact_rate)
     dist_iso = Poisson(bkg_contact_rate_iso)
@@ -453,13 +487,13 @@ function add_background_contacts!(edges_out::E_list_T, source_ids::Vector{Int64}
         # check isolation status 
         if !is_isolated(agents.residents[r_id])
             # resident is not isolated 
-            if ACTIVE_OUTBREAK && RESIDENT_LOCKDOWN
-            push!(iso_weights, 1.0 - resident_lockdown_efficacy)
+            if config.active_outbreak && config.resident_lockdown
+            push!(iso_weights, 1.0 - config.resident_lockdown_efficacy)
             else 
                 push!(iso_weights, 1.0)
             end
         else
-            push!(iso_weights, 1.0 - resident_isolation_efficacy)
+            push!(iso_weights, 1.0 - config.resident_isolation_efficacy)
         end
     end
 
@@ -467,19 +501,19 @@ function add_background_contacts!(edges_out::E_list_T, source_ids::Vector{Int64}
 
         # not isolated 
         if !is_isolated(agents.All[source_id])
-            n_to_sample = rand(rng_contacts, dist)
+            n_to_sample = rand(config.rng_contacts, dist)
         else
-            n_to_sample = rand(rng_contacts, dist_iso)
+            n_to_sample = rand(config.rng_contacts, dist_iso)
         end
         
         if n_to_sample > 0
             n_sampled = 0
             while n_sampled < n_to_sample
                 
-                target_id = sample(rng_contacts, resident_ids, Weights(iso_weights)) # sampling background contacts from residents only
+                target_id = sample(config.rng_contacts, resident_ids, Weights(iso_weights)) # sampling background contacts from residents only
                 
                 if (target_id != source_id)
-                    new_edge = Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
+                    new_edge = Networks_RACF.Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
                     push!(edges_out.edges, new_edge)
                     n_sampled += 1
                 end
