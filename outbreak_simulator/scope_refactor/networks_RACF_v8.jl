@@ -3,6 +3,9 @@
 module Networks_RACF
 
 using DataFrames
+using StatsBase
+
+using Main.Setup_RACF
 
 abstract type Contact_T end 
 abstract type Edge_T end 
@@ -120,13 +123,13 @@ function compile_weights(elist::E_list_T)::Array{Float64}
 
 end
 
-function sample_E_list(elist::E_list_T, n, weight_arr)::E_list_T
+function sample_E_list(elist::E_list_T, n, weight_arr, config::Setup_RACF.Config_T)::E_list_T
 
     e_list_out = E_list()
 
     edges = elist.edges
 
-    edges_out = sample(rng_contacts, edges, Weights(weight_arr), n)
+    edges_out = sample(config.rng_contacts, edges, Weights(weight_arr), n)
 
     e_list_out.edges = edges_out
 

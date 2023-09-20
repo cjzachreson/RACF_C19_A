@@ -104,7 +104,8 @@ end
 
 # adds immunity status
 function initialise_immunity_status!(im::Diseases_RACF.Immunity_Profile_T, 
-                                     agent_DF::DataFrame)
+                                     agent_DF::DataFrame,
+                                     config::Setup_RACF.Config_T)
 
     #input is immunity status of agent i, and 
     # text dataframe of immunity status values from population
@@ -125,26 +126,29 @@ function initialise_immunity_status!(im::Diseases_RACF.Immunity_Profile_T,
     im.NAT_t = 0.0
     # protection values 
 
-    if IMMUNITY
+    if config.immunity
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Omicron"] = agent_DF.eff_acqui[1]
+        im.protection_Infection["Default"] = agent_DF.eff_acqui[1]
+        
         #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Omicron"] = agent_DF.eff_symp[1]
+        im.protection_Symptoms["Default"] = agent_DF.eff_symp[1]
+        
         #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Omicron"]  = agent_DF.eff_trans[1]
+        im.protection_Transmission["Default"]  = agent_DF.eff_trans[1]
+        
         #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Omicron"] = agent_DF.eff_death[1]
+        im.protection_Death["Default"] = agent_DF.eff_death[1]
     else
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Omicron"] = 0.0
+        im.protection_Infection["Default"] = 0.0
         #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Omicron"] = 0.0
+        im.protection_Symptoms["Default"] = 0.0
         #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Omicron"]  = 0.0
+        im.protection_Transmission["Default"]  = 0.0
         #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Omicron"] = 0.0
+        im.protection_Death["Default"] = 0.0
     end
 
 
@@ -173,30 +177,30 @@ function initialise_immunity_status_from_pdist!(im::Diseases_RACF.Immunity_Profi
     im.NAT_t = 0.0
     # protection values 
 
-    if IMMUNITY
+    if config.immunity
         # sample from population-specific neut distribution 
         ln_neuts = rand(config.rng_immunity, pdist)
         neuts = exp(ln_neuts)
 
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Omicron"] = Diseases_RACF.Efficacy_infection_Omicron(neuts)
+        im.protection_Infection["Default"] = Diseases_RACF.Efficacy_infection_Omicron(neuts)
         #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Omicron"] = Diseases_RACF.Efficacy_Symptoms_Omicron(neuts)
+        im.protection_Symptoms["Default"] = Diseases_RACF.Efficacy_Symptoms_Omicron(neuts)
         #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Omicron"]  = Diseases_RACF.Efficacy_OT_Omicron(neuts)
+        im.protection_Transmission["Default"]  = Diseases_RACF.Efficacy_OT_Omicron(neuts)
         #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Omicron"] = Diseases_RACF.Efficacy_Death_Omicron(neuts)
+        im.protection_Death["Default"] = Diseases_RACF.Efficacy_Death_Omicron(neuts)
     else
         #for now, these are all for Omicron (SARS-CoV-2)
         #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Omicron"] = 0.0
+        im.protection_Infection["Default"] = 0.0
         #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Omicron"] = 0.0
+        im.protection_Symptoms["Default"] = 0.0
         #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Omicron"]  = 0.0
+        im.protection_Transmission["Default"]  = 0.0
         #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Omicron"] = 0.0
+        im.protection_Death["Default"] = 0.0
     end
 
 
@@ -431,7 +435,7 @@ end
 
 # model-specific pairwise contact weighting (i.e., high needs etc.)
 # NOTE: this function modifies the weight property of each contact
-function pairwise_weights!(A::Agents_T)
+function pairwise_weights!(A::Agents_T, config::Setup_RACF.Config_T)
     for (id, source) in A.All
         c_set = source.contacts # Dict::{day::int64, contacts::Array{contact_type}}
         # iterate through days
@@ -445,23 +449,23 @@ function pairwise_weights!(A::Agents_T)
                 w = 1.0 #default pairwise factor 
                 if (is_resident(source) && is_worker(target))
                     if is_high_needs(source)
-                        w = w_high_needs # GLOBAL
+                        w = config.w_high_needs # GLOBAL
                     else 
-                        w = w_reg_needs 
+                        w = config.w_reg_needs 
                     end
                 elseif (is_worker(source) && is_resident(target))
                     if is_high_needs(target)
-                        w = w_high_needs # GLOBAL
+                        w = config.w_high_needs # GLOBAL
                     else 
-                        w = w_reg_needs 
+                        w = config.w_reg_needs 
                     end
                 elseif (is_worker(source) && is_worker(target))
-                    w = w_worker_worker
+                    w = config.w_worker_worker
                 elseif (is_resident(source) && is_resident(target))
                     if source.room == target.room
-                        w = w_res_same_room
+                        w = config.w_res_same_room
                     else
-                        w = w_res_diff_room
+                        w = config.w_res_diff_room
                     end
                 end
 
@@ -473,7 +477,7 @@ function pairwise_weights!(A::Agents_T)
     end
 end
 
-function pairwise_weights_d!(A::Agents_T, day_of_week::Int64)
+function pairwise_weights_d!(A::Agents_T, day_of_week::Int64, config::Setup_RACF.Config_T)
     for (id, source) in A.All
         c_set = source.contacts # Dict::{day::int64, contacts::Array{contact_type}}
         # iterate through days
@@ -489,23 +493,23 @@ function pairwise_weights_d!(A::Agents_T, day_of_week::Int64)
                 w = 1.0 #default pairwise factor 
                 if (is_resident(source) && is_worker(target))
                     if is_high_needs(source)
-                        w = w_high_needs # GLOBAL
+                        w = config.w_high_needs # GLOBAL
                     else 
-                        w = w_reg_needs 
+                        w = config.w_reg_needs 
                     end
                 elseif (is_worker(source) && is_resident(target))
                     if is_high_needs(target)
-                        w = w_high_needs # GLOBAL
+                        w = config.w_high_needs # GLOBAL
                     else 
-                        w = w_reg_needs 
+                        w = config.w_reg_needs 
                     end
                 elseif (is_worker(source) && is_worker(target))
-                    w = w_worker_worker
+                    w = config.w_worker_worker
                 elseif (is_resident(source) && is_resident(target))
                     if source.room == target.room
-                        w = w_res_same_room
+                        w = config.w_res_same_room
                     else
-                        w = w_res_diff_room
+                        w = config.w_res_diff_room
                     end
                 end
 
@@ -525,7 +529,7 @@ function add_source_edges_to_E_list!(elist::Networks_RACF.E_list_T,
     for c in contacts 
         target_id = c.id 
         weight = c.weight 
-        e = Edge(source_id, target_id, weight) 
+        e = Networks_RACF.Edge(source_id, target_id, weight) 
 
         push!(elist.edges, e)
     end
@@ -545,7 +549,7 @@ function fill_E_lists_all!(elist_t::Networks_RACF.E_list_temporal_T,
             add_source_edges_to_E_list!(elist_t.day_to_E_list[d], a, c)
             
             else # initialise for day d  
-                elist_t.day_to_E_list[d] = E_list()
+                elist_t.day_to_E_list[d] = Networks_RACF.E_list()
                 add_source_edges_to_E_list!(elist_t.day_to_E_list[d], a, c)
             end
         end

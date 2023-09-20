@@ -10,6 +10,15 @@ using Main.Networks_RACF
 abstract type Room_T end 
 abstract type Rooms_T end 
 
+abstract type Facility_T end
+
+
+mutable struct facility<:Facility_T
+    id::Int64
+    facility() = new()
+end
+
+
 mutable struct Room <: Room_T
 
     # set or array? don't care about order, but would like to add and
@@ -172,7 +181,7 @@ function populate_N_lists_d_from_Rooms!(rooms::Rooms_T, N_lists_in::Networks_RAC
             for target_id in room.agent_ids
                 if target_id != source_id
                     weight = 1.0
-                    contact = Contact(target_id, d, weight)
+                    contact = Networks_RACF.Contact(target_id, d, weight)
                     contact.room_id = room_id 
                     if haskey(id_to_contacts, source_id)
                         push!(id_to_contacts[source_id], contact) 
@@ -233,7 +242,7 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T,
             for target_id in room.agent_ids
                 if target_id != source_id
                     weight = 1.0
-                    contact = Contact(target_id, d, weight)
+                    contact = Networks_RACF.Contact(target_id, d, weight)
                     contact.room_id = room_id 
                     if haskey(id_to_contacts, source_id)
                         push!(id_to_contacts[source_id], contact) 

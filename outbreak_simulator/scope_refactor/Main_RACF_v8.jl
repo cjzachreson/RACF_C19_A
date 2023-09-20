@@ -30,7 +30,7 @@
 include("./header_RACF.jl")
 
 include("./Setup_RACF_v8.jl")
-import .Setup
+import .Setup_RACF
 
 include("./Networks_RACF_v8.jl")
 import .Networks_RACF
@@ -44,35 +44,23 @@ import .Agents_RACF
 include("./Facility_Structure_v8.jl")
 import .Facility_Structure
 
+include("./Outbreak_Response_RACF_v8.jl")
+import .Outbreak_Response
+
 include("./Transmission_Dynamics_v8.jl")
 import .Transmission_Dynamics
+
 
 global NETWORK_TEST = false 
 
 # define the main function 
 #TODO: this should be the run function, not the main function
-function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbreaks_total::Int64)
-
-
+function run!(config::Setup_RACF.Config_T, 
+              pop::Setup_RACF.Pop_Input_T, 
+              facility::Facility_Structure.Facility_T,
+              n_outbreaks_tot::Int64,
+              output_dirname::String) # ! because run can modify config. 
     
-
-    # TODO: the include statements below need to come before the main() function
-    # this means refactoring the global variables defined in each file and implementing 
-    # them as function calls, called within main(). 
-
-    #include("./networks_RACF.jl")
-
-    #include("./Diseases_RACF.jl")
-
-    #include("./Agents_RACF.jl")
-
-    #include("./Facility_Structure.jl")
-
-    #include("./Transmission_Dynamics.jl")
-
-    include("./Outbreak_Response.jl")
-    
-
     #output linelist vectors 
 
     tot_infections = Vector{Int64}()
@@ -101,26 +89,31 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         FTE_def_max = Float64[]
     )
 
+
+    #setup disease parameters: 
+    diseases = Diseases_RACF.diseases()
+    Diseases_RACF.set_disease_dict!(diseases, config)
+
     #n_outbreaks_tot = 1000 # setting this a global. 
     n_outbreaks = 0
     i = 0
     while n_outbreaks < n_outbreaks_tot
         #i in 1:n_runs
 
-        global ACTIVE_OUTBREAK = false
+        config.active_outbreak = false
 
         i += 1
         #println("\n****run:$i")
 
-        global seed_offset = i # used for re-seeding rngs for each run, for comparability between each linelist element. 
+        seed_offset = i # used for re-seeding rngs for each run, for comparability between each linelist element. 
 
-        apply_seed_offset(seed_offset) #should re-seed random number generators each with a new run-specific value. 
+        Setup_RACF.apply_seed_offset!(config, seed_offset) #should re-seed random number generators each with a new run-specific value. 
         # this will allow direct comparison of linelist entries from different scenarios on the same facility. 
 
 
         # fill any constant params into linelist: 
         push!(output_linelist.run_id, i)
-        push!(output_linelist.facility_id, fac_list.service_id[fac_i])
+        push!(output_linelist.facility_id, facility.id)
         
 
         #note the below are placeholders, that will be modified if the appropriate triggers are activated:
@@ -144,25 +137,25 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         #populate_neighbour_lists_from_DataFrame!(N_lists.id_to_contacts, N_lists_str)
         ##
         #initialise Agents 
-        agents = Agents()
+        agents = Agents_RACF.Agents()
 
-        if IMMUNITY_FROM_DIST
+        if config.immunity_from_dist
 
-            ln_neut_dist_res = Normal(log_mu_res, log_sig_res)
-            ln_neut_dist_wG = Normal(log_mu_wG, log_sig_wG)
-            ln_neut_dist_WM = Normal(log_mu_wM, log_sig_wM)
+            ln_neut_dist_res = Normal(config.log_mu_res, config.log_sig_res)
+            ln_neut_dist_wG = Normal(config.log_mu_wG, config.log_sig_wG)
+            ln_neut_dist_WM = Normal(config.log_mu_wM, config.log_sig_wM)
 
-            populate_workers_from_DataFrame_imDist!(agents.workers_G, workers_G_str, ln_neut_dist_wG)#, N_lists.id_to_contacts)
+            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_G, pop.workers_G_str, ln_neut_dist_wG, config)#, N_lists.id_to_contacts)
             N_workers_G = length(agents.workers_G) #note size() not defined for dict
             #println("created $N_workers_G general staff members")
 
             #initialise medical staff
-            populate_workers_from_DataFrame_imDist!(agents.workers_M, workers_M_str, ln_neut_dist_WM)#, N_lists.id_to_contacts)
+            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_M, pop.workers_M_str, ln_neut_dist_WM, config)#, N_lists.id_to_contacts)
             N_workers_M = length(agents.workers_M) #note size() not defined for dict
             #println("created $N_workers_M medical staff members")
 
             #initialise residents
-            populate_residents_from_DataFrame_imDist!(agents.residents, residents_str, ln_neut_dist_res)#, N_lists.id_to_contacts)
+            Agents_RACF.populate_residents_from_DataFrame_imDist!(agents.residents, pop.residents_str, ln_neut_dist_res, config)#, N_lists.id_to_contacts)
             N_residents = length(agents.residents) #note size() not defined for dict
             #println("created $N_residents residents")
 
@@ -190,68 +183,70 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
 
 
 
-        agents.All = merge(agents.residents, agents.workers_G, agents.workers_M)
+        agents.All = merge(agents.residents, 
+                           agents.workers_G, 
+                           agents.workers_M)
 
         # add agent numbers to output list 
         push!(output_linelist.n_residents, N_residents)
         push!(output_linelist.n_staff, (N_workers_G + N_workers_M))
-        push!(output_linelist.total_FTE, compute_total_FTE(agents))
+        push!(output_linelist.total_FTE, Agents_RACF.compute_total_FTE(agents))
 
         #populate rooms (new on 2022 09 13, need it for re-distribution of labour during 
         # surge rostering from furloughs)
-        rooms = Rooms()
-        populate_Rooms_from_Agents!(rooms, agents)
+        rooms = Facility_Structure.Rooms()
+        Facility_Structure.populate_Rooms_from_Agents!(rooms, agents)
 
         # assign neighbour lists from rooms:
-        N_lists_new = N_list_temporal_multigraph() 
+        N_lists_new = Networks_RACF.N_list_temporal_multigraph() 
         n_days = 7 #hacked in.
         for d in 1:n_days
-            N_lists_new.day_to_N_list[d] = N_list()
+            N_lists_new.day_to_N_list[d] = Networks_RACF.N_list()
             N_list_d = N_lists_new.day_to_N_list[d]
-            populate_N_lists_d_from_Rooms!(rooms, N_list_d, d)
+            Facility_Structure.populate_N_lists_d_from_Rooms!(rooms, N_list_d, d)
         end
 
         # assign agent contacts from N lists constructed above from rooms 
-        assign_contacts!(agents, N_lists_new) 
+        Agents_RACF.assign_contacts!(agents, N_lists_new) 
         #note - this will completely replace the existing contact list 
 
         # adjust pairwise weights based on model-specific bias 
         # NOTE: this involves GLOBAL control parameters. 
         # NOTE: adjusting weights in agent neighbour lists 
         # also adjusts the weights in N_lists (referencing)
-        pairwise_weights!(agents)
+        Agents_RACF.pairwise_weights!(agents, config)
 
         if NETWORK_TEST
             # TEST: 2022 09 20
             # copy the network, and test against final network
             # after simulation is complete and all workers 
             # have returned from furlough
-            E_list_initial =  E_list()
+            E_list_initial =  Networks_RACF.E_list()
             for (id, a) in agents.All
                 for (d, c) in a.contacts
-                    add_source_edges_to_E_list!(E_list_initial, a, c )
+                    Agents_RACF.add_source_edges_to_E_list!(E_list_initial, a, c )
                 end
             end
         end
 
         #initialise test schedule 
-        initialise_baseline_testing_schedule!(agents)
+        Outbreak_Response.initialise_baseline_testing_schedule!(agents, config)
 
         ##*****##
 
         #println("adjusted pairwise weights")
 
-        edge_lists_all = E_list_temporal()
+        edge_lists_all = Networks_RACF.E_list_temporal()
         # iterate through agents and contacts and generate 
         # full edge lists (all possible contacts)
-        fill_E_lists_all!(edge_lists_all, agents)
+        Agents_RACF.fill_E_lists_all!(edge_lists_all, agents)
         #println("created edge lists for each day")
 
         # compute weight totals for each day (denominators used to compute sampling rate)
         w_tot_d = Dict{Int64, Float64}() # day -> w_tot
         for (d, EL) in edge_lists_all.day_to_E_list
             #w_tot_d[d] = sum_edge_weights_EList(EL) # directed
-            w_tot_d[d] = sum_edge_weights_EList(EL) / 2.0 #undirected
+            w_tot_d[d] = Networks_RACF.sum_edge_weights_EList(EL) / 2.0 #undirected
         end
         # NOTE: currently sum_edge_weights_EList() double-counts
         # all interactions because edges are accessed 
@@ -266,9 +261,14 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         isolated_residents = Dict{Int64, Float64}()
 
         # output structures 
-        all_transmissions = DataFrame(source = [], target = [], time = [], type_of_agent = [])
+        all_transmissions = DataFrame(source = [], 
+                                      target = [], 
+                                      time = [], 
+                                      type_of_agent = [])
 
-        all_detections = DataFrame(id = [], time_detected = [], type_of_agent = [])
+        all_detections = DataFrame(id = [], 
+                                   time_detected = [], 
+                                   type_of_agent = [])
         
         # initialise transmission simulation
 
@@ -276,7 +276,7 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         t_i = 0.0
         t_f = 90.0 # three months, maximum simulation time. 
         termination_flag = false 
-        step_final = convert(Int64, ceil((t_f - t_i)/dt ))
+        step_final = convert(Int64, ceil((t_f - t_i)/config.dt ))
 
         # TODO: should set the system up to start on an arbitrary day. 
         day_of_week_i = convert(Int64, floor(mod(t_i, 7))) + 1 # first day. 
@@ -286,16 +286,21 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         #index case id
         #index_case_id = minimum(keys(agents.workers_G)) #first worker (id 101 in this example) 
 
-        if resident_index_case && worker_index_case
-            index_case_id = select_random_agent(agents, day_of_week_i)
-        elseif resident_index_case
-            index_case_id = select_random_resident(agents)
-        elseif worker_index_case
+        if config.resident_index_case && config.worker_index_case
+            index_case_id = Transmission_Dynamics.select_random_agent(agents, 
+                                                                      day_of_week_i,
+                                                                      config)
+        elseif config.resident_index_case
+            index_case_id = Transmission_Dynamics.select_random_resident(agents,
+                                                                         config)
+        elseif config.worker_index_case
             #index_case_id = select_random_general_staff(agents, day_of_week_i)
-            index_case_id = select_random_worker(agents, day_of_week_i)
+            index_case_id = Transmission_Dynamics.select_random_worker(agents, 
+                                                                       day_of_week_i,
+                                                                       config)
         end
 
-        if is_worker(agents.All[index_case_id])
+        if Agents_RACF.is_worker(agents.All[index_case_id])
             push!(output_linelist.index_case_type, "worker")
         else
             push!(output_linelist.index_case_type, "resident")
@@ -305,32 +310,36 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
 
         time_infected = t_i
 
-        infect_agent!(agents.All[index_case_id], 
-                    diseases["Omicron"], 
-                    time_infected, 
-                    infected_agents)
+        Transmission_Dynamics.infect_agent!(agents.All[index_case_id], 
+                                            diseases.dict["Default"], 
+                                            time_infected, 
+                                            infected_agents,
+                                            config)
 
 
         # define some parameters defining contact rates 
         #contact_rate_per_resident_per_day = 10.0 #NOTE: moved to setup_RACF.jl
 
         # 2022 09 28 contact rate per high needs resident vs rate per regular-needs resident 
-        n_residents_high_needs = count_high_needs_residents(agents)
-        n_residents_reg_needs = count_reg_needs_residents(agents)
+        n_residents_high_needs = Agents_RACF.count_high_needs_residents(agents)
+        n_residents_reg_needs = Agents_RACF.count_reg_needs_residents(agents)
 
-        contact_rate_per_day = convert(Float64, n_residents_high_needs) * contact_rate_per_resident_per_day
+        contact_rate_per_day = 
+            convert(Float64, n_residents_high_needs) * 
+            config.contact_rate_per_resident_per_day
         # applying the same factor of 3 applied to the contact weights between workers and residents. 
-        contact_rate_per_day += convert(Float64, n_residents_reg_needs) * (contact_rate_per_resident_per_day / 3.0)
+        contact_rate_per_day += 
+            convert(Float64, n_residents_reg_needs) * (config.contact_rate_per_resident_per_day / 3.0)
 
         #contact_rate_per_day = convert(Float64, N_residents) * contact_rate_per_resident_per_day
         
-        contact_rate_per_step = contact_rate_per_day * dt 
+        contact_rate_per_step = contact_rate_per_day * config.dt 
 
         # background contacts between residents (i.e., in shared meal spaces)
         # these are not included in the structured facility model
         # the implied structure is a fully-connected graph with uniform edge weight
         #bkg_contact_rate_per_resident_per_day = 5.0 #NOTE: moved to setup_RACF.jl
-        bkg_contact_rate_per_resident_per_step = bkg_contact_rate_per_resident_per_day * dt
+        bkg_contact_rate_per_resident_per_step = config.bkg_contact_rate_per_resident_per_day * config.dt
 
 
 
@@ -350,7 +359,7 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                 termination_flag = true
             end
 
-            t = convert(Float64, step) * dt 
+            t = convert(Float64, step) * config.dt 
             day_of_week = convert(Int64, ceil(mod(t-small_num, 7))) # day is an integer 
             day = convert(Int64, ceil(t - small_num)) # first day. 
 
@@ -358,7 +367,7 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
             #println("time is $t")
             #println("day is $day")
 
-            t_last = convert(Float64, step-1) * dt 
+            t_last = convert(Float64, step-1) * config.dt 
             day_last = convert(Int64, ceil(t_last - small_num)) # day of previous step
 
             new_day = false
@@ -370,7 +379,7 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
 
             # iterate through infected agents and update
             # infection status of each.  
-            update_infections!(agents, infected_agents)
+            Transmission_Dynamics.update_infections!(agents, infected_agents, config)
 
             #check for symptoms: 
 
@@ -385,12 +394,20 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                 # NOTE: 2022 09 15, now adds any re-instated workers back to their 
                 # assigned rooms. 
                 room_ids_to_update = Set{Int64}()
-                update_absentees!(agents, removal_period, removed_workers, t, rooms, room_ids_to_update)
+                Outbreak_Response.update_absentees!(agents, 
+                                                    config.removal_period, 
+                                                    removed_workers, 
+                                                    t, 
+                                                    rooms, 
+                                                    room_ids_to_update)
                 # room_ids_to_update will now include all rooms where workers have been
                 # reinstated from furlough 
 
                 #iterate isolation periods for residents and re-instate
-                update_isolated_residents!(agents, removal_period, isolated_residents, t)
+                Outbreak_Response.update_isolated_residents!(agents, 
+                                                             config.removal_period, 
+                                                             isolated_residents, 
+                                                             t)
                 
                 F_t = length(removed_workers)
                 if F_t > F_max
@@ -402,7 +419,7 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                     Iso_max = Iso_t # maximum number of isolated residents 
                 end
                 
-                FTE_def_t = compute_FTE_deficit(agents, removed_workers)
+                FTE_def_t = Agents_RACF.compute_FTE_deficit(agents, removed_workers)
                 if FTE_def_t > FTE_def_max
                     FTE_def_max = FTE_def_t # maximum FTE deficit from furlough 
                 end
@@ -412,12 +429,12 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                 resident_ids_to_isolate = Array{Int64, 1}() 
 
                 # check to see whether to implement infection control after delay: 
-                if time_since_outbreak_declared >= delay_val_i
-                    global PPE_AVAILABLE = true #toggled on after delay. #see trigger for transmit_infection_AOB in #transmission_dynamics.jl  
+                if time_since_outbreak_declared >= config.delay_infection_control
+                    config.PPE_available = true #toggled on after delay. #see trigger for transmit_infection_AOB in #transmission_dynamics.jl  
                 end
 
                 # update delay clock for introduction of infection control measures: 
-                if ACTIVE_OUTBREAK
+                if config.active_outbreak
                     time_since_outbreak_declared += 1 # integer increase b/c it's in the new_day scope 
                 end
 
@@ -427,26 +444,63 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                 # NOTE: Do we assume RATs are available immediately after outbreak declaration, 
                 # or should delay be applied to this as well? 
                 # For now, I'll assume tests are immediately available, but PPE stockpile is not. 
-                if (ACTIVE_OUTBREAK && OUTBREAK_CONTROL)
+                if (config.active_outbreak && config.outbreak_control)
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    test_workers!(all_detections, p_test_per_day_workers_outbreak, agents, infected_agents, day_of_week, t, worker_ids_to_remove)
+                    Outbreak_Response.test_workers!(all_detections, 
+                                                    config.p_test_per_day_workers_outbreak, 
+                                                    agents, 
+                                                    infected_agents, 
+                                                    day_of_week, 
+                                                    t, 
+                                                    worker_ids_to_remove, 
+                                                    config)
                     # test residents 
-                    test_residents!(all_detections, p_test_per_day_residents_outbreak, agents, infected_agents, day_of_week, t, resident_ids_to_isolate)
+                    Outbreak_Response.test_residents!(all_detections, 
+                                                      config.p_test_per_day_residents_outbreak, 
+                                                      agents, 
+                                                      infected_agents, 
+                                                      day_of_week, 
+                                                      t, 
+                                                      resident_ids_to_isolate, 
+                                                      config)
                 else
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    test_workers!(all_detections, p_test_per_day_workers_baseline, agents, infected_agents, day_of_week, t, worker_ids_to_remove)
+                    Outbreak_Response.test_workers!(all_detections, 
+                                                    config.p_test_per_day_workers_baseline, 
+                                                    agents, 
+                                                    infected_agents, 
+                                                    day_of_week, 
+                                                    t, 
+                                                    worker_ids_to_remove, 
+                                                    config)
                     # test residents 
-                    test_residents!(all_detections, p_test_per_day_residents_baseline, agents, infected_agents, day_of_week, t, resident_ids_to_isolate)
+                    Outbreak_Response.test_residents!(all_detections, 
+                                                      config.p_test_per_day_residents_baseline, 
+                                                      agents, 
+                                                      infected_agents, 
+                                                      day_of_week, 
+                                                      t, 
+                                                      resident_ids_to_isolate, 
+                                                      config)
                 end
 
                 # remove workers from rooms and from N_lists if they tested positive 
-                if WORKER_CASE_ISOLATION
-                    remove_workers!(agents, worker_ids_to_remove, N_lists_new, removed_workers, t, rooms, room_ids_to_update)
+                if config.worker_case_isolation
+                    Outbreak_Response.remove_workers!(agents, 
+                                                      worker_ids_to_remove, 
+                                                      N_lists_new, 
+                                                      removed_workers, 
+                                                      t, 
+                                                      rooms, 
+                                                      room_ids_to_update)
                 end
 
                 # isolate residents who tested positive: 
-                if RESIDENT_CASE_ISOLATION
-                    isolate_residents!(agents, resident_ids_to_isolate, isolated_residents, t)
+                if config.resident_case_isolation
+                    Outbreak_Response.isolate_residents!(agents, 
+                                                         resident_ids_to_isolate, 
+                                                         isolated_residents, 
+                                                         t)
                 end
 
 
@@ -465,17 +519,24 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                         # the below removes the in-edges to removed workers 
                         # (and will perform any other updates based on room assignment changes in surge roster (for future version))
                         # this also updates out-edges for any workers who are returning from furlough. 
-                        update_N_lists_d_from_Rooms!(rooms, room_ids_to_update, N_list_d, d)
+                        Facility_Structure.update_N_lists_d_from_Rooms!(rooms, 
+                                                                        room_ids_to_update, 
+                                                                        N_list_d, 
+                                                                        d)
                     end
                 end
                 # assign agent contacts from N lists constructed above from rooms 
                 # only doing this for the current day, as the future days will probably change again 
                 # before the contacts are needed. 
-                assign_todays_contacts!(agents, N_lists_new, day_of_week) 
+                Agents_RACF.assign_todays_contacts!(agents, 
+                                                    N_lists_new, 
+                                                    day_of_week) 
                 #note - this will completely replace the existing contact list for today
         
                 # adjust pairwise weights based on model-specific bias 
-                pairwise_weights_d!(agents, day_of_week) 
+                Agents_RACF.pairwise_weights_d!(agents, 
+                                                day_of_week,
+                                                config) 
                 # for the daily network update, this should be 
                 # incorporated into assign_todays_contacts!()
 
@@ -484,10 +545,10 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                 #println("\n****\nt=$t: new cases last 7 days: $n_cases_last_7")
 
                 # declare active outbreak, or delcare active outbreak over. 
-                if !(ACTIVE_OUTBREAK)
-                    OB_flag = declare_outbreak(all_detections, t)
+                if !(config.active_outbreak)
+                    OB_flag = Outbreak_Response.declare_outbreak(all_detections, t)
                     if OB_flag
-                        global ACTIVE_OUTBREAK = true
+                        config.active_outbreak = true
                         n_outbreaks += 1 
                         println("\n****run:$i")
                         println("active outbreak declared at time $t")
@@ -499,9 +560,9 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
                         output_linelist.Det_cum_OB_on[i] = size(all_detections, 1) 
                     end
                 else
-                    OB_over_flag = outbreak_over(all_detections, t)
+                    OB_over_flag = Outbreak_Response.outbreak_over(all_detections, t)
                     if OB_over_flag
-                        global ACTIVE_OUTBREAK = false
+                        config.active_outbreak = false
                         println("active outbreak over at time $t")
                         output_linelist.t_OB_off[i] = t
                         termination_flag = true
@@ -514,14 +575,22 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
             #modified intputs: all_transmissions, infected_agents, agents
 
             bkg_contact_rate = bkg_contact_rate_per_resident_per_step
-            bkg_contact_rate_iso = bkg_contact_rate_per_resident_per_step * (1.0 - resident_isolation_efficacy)
+            bkg_contact_rate_iso = bkg_contact_rate_per_resident_per_step * (1.0 - config.resident_isolation_efficacy)
 
-            if ACTIVE_OUTBREAK && OUTBREAK_CONTROL && RESIDENT_LOCKDOWN
-                bkg_contact_rate *= (1.0 - resident_lockdown_efficacy)
+            if config.active_outbreak && config.outbreak_control && config.resident_lockdown
+                bkg_contact_rate *= (1.0 - config.resident_lockdown_efficacy)
             end
 
-            compute_transmission!(all_transmissions, infected_agents, agents,
-                                day_of_week, w_tot_d, contact_rate_per_step, bkg_contact_rate, bkg_contact_rate_iso, t)
+            Transmission_Dynamics.compute_transmission!(all_transmissions, 
+                                                        infected_agents, 
+                                                        agents,
+                                                        day_of_week, 
+                                                        w_tot_d, 
+                                                        contact_rate_per_step, 
+                                                        bkg_contact_rate, 
+                                                        bkg_contact_rate_iso, 
+                                                        t, 
+                                                        config)
 
         end
 
@@ -529,20 +598,20 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
         #TEST: build final network and compare to original one
         # (should be the same if all workers have been reinstated by tf)
         if NETWORK_TEST
-            E_list_final =  E_list()
+            E_list_final =  Networks_RACF.E_list()
             for (id, a) in agents.All
                 for (d, c) in a.contacts
-                    add_source_edges_to_E_list!(E_list_final, a, c )
+                    Agents_RACF.add_source_edges_to_E_list!(E_list_final, a, c )
                 end
             end
 
-            test_val_e1_e2 = compare_E_lists(E_list_initial, E_list_final)
+            test_val_e1_e2 = Networks_RACF.compare_E_lists(E_list_initial, E_list_final)
             if test_val_e1_e2 
                 println("final network same as initial network e_i -> e_f")
             else
                 println("final network different from initial network e_i -> e_f")
             end
-            test_val_e2_e1 = compare_E_lists(E_list_final, E_list_initial)
+            test_val_e2_e1 = Networks_RACF.compare_E_lists(E_list_final, E_list_initial)
             if test_val_e2_e1 
                 println("final network same as initial network e_f -> e_i")
             else
@@ -550,18 +619,18 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
             end
         end
 
-        if write_transmission_tree_flag && output_linelist.OB_declared[i]
+        if config.write_transmission_tree_flag && output_linelist.OB_declared[i]
             rand_label = now()
             rand_label = replace(string(rand_label), ":"=> "_")
             rand_label = replace(string(rand_label), "."=> "_")
             rand_label = replace(string(rand_label), "-"=> "_")
-            if OUTBREAK_CONTROL
+            if config.outbreak_control
                 ob_lab = "ICAOB_"
             else
                 ob_lab = "unmitigated_"
             end
             
-            output_dir_run = "$output_dir_fac\\run_$(i)"
+            output_dir_run = "$output_dirname\\run_$(i)"
             if !ispath(output_dir_run)
                 mkpath(output_dir_run)
             end
@@ -577,12 +646,12 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
 
         # count total infections and detections in staff and residents 
 
-        I_tot_staff = count_worker_infections(agents, all_transmissions)
-        I_tot_res = count_resident_infections(agents, all_transmissions)
-        Det_tot_staff = count_worker_detections(agents, all_detections)
-        Det_tot_res = count_resident_detections(agents, all_detections)
+        I_tot_staff = Agents_RACF.count_worker_infections(agents, all_transmissions)
+        I_tot_res = Agents_RACF.count_resident_infections(agents, all_transmissions)
+        Det_tot_staff = Agents_RACF.count_worker_detections(agents, all_detections)
+        Det_tot_res = Agents_RACF.count_resident_detections(agents, all_detections)
 
-        if is_worker(agents.All[index_case_id])
+        if Agents_RACF.is_worker(agents.All[index_case_id])
             I_tot_staff += 1
         else 
             I_tot_res += 1
@@ -629,8 +698,8 @@ function run(config::Setup_RACF.Config_T, pop::Setup_RACF.Pop_Input_T, n_outbrea
     println("avg. t first detection: $(mean(time_to_detection[.!isnan.(time_to_detection)]))")
     println("avg. infections at first detection: $(mean(tot_infections_at_detection[.!isnan.(tot_infections_at_detection)]))")
 
-    output_fname = "$(output_dir_fac)\\output_summary.csv"
-    output_linelist_fname = "$(output_dir_fac)\\output_linelist.csv"
+    output_fname = "$(output_dirname)\\output_summary.csv"
+    output_linelist_fname = "$(output_dirname)\\output_linelist.csv"
 
     output = DataFrame(I_tot = tot_infections, 
                     I_detected = tot_detections, 
@@ -764,8 +833,10 @@ function main()
                         pop_run = Setup_RACF.population_input()
                         Setup_RACF.read_in_population_data!(pop_run, config_run)
 
+                        facility = Facility_Structure.facility()
+                        facility.id = fac_list.service_id[fac_i]
 
-                        run(config_run, pop_run, n_outbreaks_tot)
+                        run!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
                     end
 
                 end

@@ -17,7 +17,7 @@ abstract type Vaccine_T end
 
 # immutable stuct for general disease parameters, defined 
 # for each different pathogen: 
-struct disease_params <: Disease_T
+mutable struct disease_params <: Disease_T
 
     ## beta, global transmission scaler
     beta::Float64 # 1
@@ -94,7 +94,7 @@ function set_disease_params_default!(params::Disease_T, config::Setup_RACF.Confi
     params.rec_min = 5.0
     params.rec_max = 10.0
     params.b_dispersion = 0.15
-    params.V_max = 7.0
+    params.Vmax = 7.0
     params.inc_plat_fac = 0.1
     params.rec_plat_fac = 0.0
 
@@ -113,6 +113,8 @@ function set_disease_params_default!(params::Disease_T, config::Setup_RACF.Confi
     ## distribution of infectiousness 
     params.b_scale = params.beta / params.b_dispersion  #b_scale::Float64
     params.b_dist = Gamma(params.b_dispersion, params.beta/params.b_dispersion) #b_dist::Gamma{Float64}
+
+    params.name = "Default"
 
 end
 # mutable struct for specific infection parameters, for 
@@ -186,7 +188,7 @@ function set_infection_default!(infection::Infection_T,
     ## symptom expression (bool symptomatic or not) "Will they express symptoms?"
     infection.symptomatic = rand(config.rng_infections) < (1.0 - pathogen.p_asymp)#symptomatic::Bool 
     ## symptom expression (bool expressing symptoms or not) "are they currently expressing symptoms?"
-    infection.expreessing_symptoms = false #expressing_symptoms::Bool 
+    infection.expressing_symptoms = false #expressing_symptoms::Bool 
     ## force of infection (i.e., baseline infection transmission rate as a function of time)
     infection.beta_t = 0.0#beta_t::Float64 
     
@@ -337,20 +339,20 @@ mutable struct diseases <: Diseases_T
 
 end
 
-function set_disease_dict!(diseases::Disease_T, config::Setup_RACF.Config_T)
+function set_disease_dict!(diseases::Diseases_T, config::Setup_RACF.Config_T)
 
     diseases.dict = Dict{String, Disease_T}() #[disease_name] = Delta_variant 
 
     #TODO: parameters are still Delta variant- adjust for omicron. 
     diseases.names = ["Default"]#["Delta Variant"]
-    diseases.n = length(disease_names) 
+    diseases.n = length(diseases.names) 
 
     #NOTE: this is setup for multiple diseases, but only one is implemented. 
     # the parameters below are fixed. For multistrain implementations, 
     # TODO: this would need parameter vectors setup before the loop. 
-    for d = 1:n_diseases
+    for d = 1:diseases.n
 
-        disease_name = disease.names[d]
+        disease_name = diseases.names[d]
 
         disease_i = disease_params()
         set_disease_params_default!(disease_i, config::Setup_RACF.Config_T)

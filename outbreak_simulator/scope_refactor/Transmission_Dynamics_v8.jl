@@ -3,11 +3,13 @@ module Transmission_Dynamics
 using DataFrames
 using Random
 using Distributions
+using StatsBase
 
 using Main.Setup_RACF
 using Main.Networks_RACF
 using Main.Diseases_RACF
 using Main.Agents_RACF
+using Main.Outbreak_Response
 
 
 
@@ -26,8 +28,10 @@ function infect_agent!(a::Agents_RACF.Agent_T,
 
     a.n_infections += 1
 
-    new_infection = Diseases.infection() #initialise a blank infection
-    Diseases.set_infection_default!(new_infection, pathogen, config)
+    new_infection = Diseases_RACF.infection() #initialise a blank infection
+    Diseases_RACF.set_infection_default!(new_infection, 
+                                         pathogen, 
+                                         config)
     # time since infection is 0
     
     # reinitialise symptom expression based on immunity status: 
@@ -37,7 +41,7 @@ function infect_agent!(a::Agents_RACF.Agent_T,
         p_symp_i *= eff_symp
     end
 
-    if rand(rng_infections) < p_symp_i
+    if rand(config.rng_infections) < p_symp_i
         new_infection.symptomatic = true
     else
         new_infection.symptomatic = false
@@ -150,12 +154,13 @@ function transmit_infection_AOB!(source::Agents_RACF.Agent_T,
 
             st_IC = 0.0 
             # compute reduction in FoI based on Infection Control measurs used during active outbreaks: 
-            if ( is_worker(target) && is_worker(source) )
-                st_IC = eff_IC_worker_worker #global 
-            elseif ( (is_worker(target) && is_resident(source)) || (is_worker(source) && is_resident(target) ))
-                st_IC = eff_IC_worker_resident # global 
-            elseif ( is_resident(target) && is_resident(source) )
-                st_IC = eff_IC_resident_resident # global 
+            if ( Agents_RACF.is_worker(target) && Agents_RACF.is_worker(source) )
+                st_IC = config.eff_IC_worker_worker #global 
+            elseif ( (Agents_RACF.is_worker(target) && Agents_RACF.is_resident(source)) ||
+                     (Agents_RACF.is_worker(source) && Agents_RACF.is_resident(target) ))
+                st_IC = config.eff_IC_worker_resident # global 
+            elseif ( Agents_RACF.is_resident(target) && Agents_RACF.is_resident(source) )
+                st_IC = config.eff_IC_resident_resident # global 
             end 
 
             
@@ -205,7 +210,9 @@ end
 
 
 # infect index case
-function select_random_general_staff(agents::Agents_RACF.Agents_T, day::Int64)::Int64
+function select_random_general_staff(agents::Agents_RACF.Agents_T, 
+                                     day::Int64, 
+                                     config::Setup_RACF.Config_T)::Int64
 
     ids = collect(keys(agents.workers_G))
     
@@ -214,7 +221,7 @@ function select_random_general_staff(agents::Agents_RACF.Agents_T, day::Int64)::
     n_max = 1000
     n = 0
     while !present
-        index_case = sample(rng_infections, ids)
+        index_case = sample(config.rng_infections, ids)
         present = (agents.workers_G[index_case].roster[day] == 1)
         n += 1
         if n > n_max
@@ -225,15 +232,17 @@ function select_random_general_staff(agents::Agents_RACF.Agents_T, day::Int64)::
     return index_case
 end
 
-function select_random_resident(agents)::Int64
+function select_random_resident(agents, config::Setup_RACF.Config_T)::Int64
 
     resident_ids = collect(keys(agents.residents))
-    index_case_id = sample(rng_infections, resident_ids)
+    index_case_id = sample(config.rng_infections, resident_ids)
     return index_case_id 
 
 end
 
-function select_random_worker(agents::Agents_RACF.Agents_T, day::Int64)::Int64
+function select_random_worker(agents::Agents_RACF.Agents_T, 
+                              day::Int64, 
+                              config::Setup_RACF.Config_T)::Int64
 
     ids_g = collect(keys(agents.workers_G))
     ids_m = collect(keys(agents.workers_M))
@@ -245,7 +254,7 @@ function select_random_worker(agents::Agents_RACF.Agents_T, day::Int64)::Int64
     n_max = 1000
     n = 0
     while !present
-        index_case = sample(rng_infections, ids)
+        index_case = sample(config.rng_infections, ids)
         present = (agents.All[index_case].roster[day] == 1)
         n += 1
         if n > n_max
@@ -260,16 +269,18 @@ end
 # this ensures that p(index case is worker) = p(worker), and that 
 # the definition of 'outbreak' doesn't change (i.e., the outbreak simulation)
 # begins when the facility is exposed. 
-function select_random_agent(agents::Agents_RACF.Agents_T, day::Int64)::Int64
+function select_random_agent(agents::Agents_RACF.Agents_T, 
+                             day::Int64, 
+                             config::Setup_RACF.Config_T)::Int64  
 
     ids = collect(keys(agents.All))
-    index_case = sample(rng_infections, ids)
+    index_case = sample(config.rng_infections, ids)
 
     # ensures we select a worker who is present,
     # while selecting workers with probability proportional 
     # to the worker fraction.
-    if is_worker(agents.All[index_case])
-        index_case = select_random_worker(agents, day)
+    if Agents_RACF.is_worker(agents.All[index_case])
+        index_case = select_random_worker(agents, day, config)
     end
 
     return index_case
@@ -278,7 +289,9 @@ end
 
 # update agent infections 
 # NOTE: this function uses the global parameter dt. 
-function update_infections!(agents::Agents_RACF.Agents_T, infected_agents::Dict{Int64, Float64})
+function update_infections!(agents::Agents_RACF.Agents_T, 
+                            infected_agents::Dict{Int64, Float64}, 
+                            config::Setup_RACF.Config_T)
 
     agents_fully_recovered = []
     for (id_i, t_inf) in infected_agents
@@ -287,7 +300,7 @@ function update_infections!(agents::Agents_RACF.Agents_T, infected_agents::Dict{
 
         # iterate infection foward in time 
         for (pathogen_name_j, infection_j) in agents.All[id_i].infections
-            recovered = update_infection!(infection_j, dt)
+            recovered = Diseases_RACF.update_infection!(infection_j, config.dt)
             if recovered
                 push!(infections_to_remove, pathogen_name_j)
             end
@@ -336,7 +349,7 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
     for (id, t_inf) in infected_agents
         a = agents.All[id] 
         if haskey(a.contacts, day_of_week)
-            if is_resident(a) # queuing for background contacts. 
+            if Agents_RACF.is_resident(a) # queuing for background contacts. 
                 push!(infected_resident_ids, a.id) 
                 #NOTE: 2022 09 19 nesting this under the isolation test means isolated residents were not added
                 # this should now be fixed 
@@ -375,7 +388,8 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
 
     edges_to_evaluate = Networks_RACF.sample_E_list(E_list_infectious_t, 
                                                     n_to_sample, 
-                                                    weights_infectious_edges_t)
+                                                    weights_infectious_edges_t,
+                                                    config)
     
     add_background_contacts!(edges_to_evaluate, 
                              infected_resident_ids, 
@@ -416,7 +430,7 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
         end
        
         if transmission_occurred
-            if is_worker(target)
+            if Agents_RACF.is_worker(target)
                 if target.is_medical 
                     push!(all_transmissions, (source.id, target.id, t, 3))
                 else 
@@ -450,13 +464,13 @@ function test_contacts(edges_to_evaluate::Networks_RACF.E_list_T,
         end
 
         #(2) is source an isolated worker? 
-        if (is_worker(s) && is_isolated(s))
+        if (Agents_RACF.is_worker(s) && Outbreak_Response.is_isolated(s))
             println("agent $(s.id) is trying to infect agent $(t.id), but $(s.id) is an isolated worker")
             test_flag = false 
         end
 
         #(3) is target an isolated worker? 
-        if (is_worker(t) && is_isolated(t))
+        if (Agents_RACF.is_worker(t) && Outbreak_Response.is_isolated(t))
             println("agent $(s.id) is trying to infect agent $(t.id), but $(t.id) is an isolated worker")
             test_flag = false 
         end
@@ -485,7 +499,7 @@ function add_background_contacts!(edges_out::Networks_RACF.E_list_T,
     iso_weights = Float64[]
     for r_id in resident_ids 
         # check isolation status 
-        if !is_isolated(agents.residents[r_id])
+        if !Outbreak_Response.is_isolated(agents.residents[r_id])
             # resident is not isolated 
             if config.active_outbreak && config.resident_lockdown
             push!(iso_weights, 1.0 - config.resident_lockdown_efficacy)
@@ -500,7 +514,7 @@ function add_background_contacts!(edges_out::Networks_RACF.E_list_T,
     for source_id in source_ids
 
         # not isolated 
-        if !is_isolated(agents.All[source_id])
+        if !Outbreak_Response.is_isolated(agents.All[source_id])
             n_to_sample = rand(config.rng_contacts, dist)
         else
             n_to_sample = rand(config.rng_contacts, dist_iso)

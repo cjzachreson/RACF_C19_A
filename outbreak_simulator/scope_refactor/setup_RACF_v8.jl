@@ -24,6 +24,7 @@ mutable struct population_input<:Pop_Input_T
     population_input() = new()
 end
 
+
 mutable struct run_configuration <: Config_T
     config_str::String
 
@@ -896,10 +897,10 @@ function apply_seed_offset!(config::Config_T, seed_offset::Int64)
     config.seed_infections += seed_offset 
     config.seed_immunity += seed_offset 
 
-    config.rng_contacts = MersenneTwister(seed_contacts)
-    config.rng_testing = MersenneTwister(seed_testing)
-    config.rng_infections = MersenneTwister(seed_infections)
-    config.rng_immunity = MersenneTwister(seed_immunity)
+    config.rng_contacts = MersenneTwister(config.seed_contacts)
+    config.rng_testing = MersenneTwister(config.seed_testing)
+    config.rng_infections = MersenneTwister(config.seed_infections)
+    config.rng_immunity = MersenneTwister(config.seed_immunity)
 
     return
 
