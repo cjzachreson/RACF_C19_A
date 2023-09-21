@@ -30,9 +30,7 @@ mutable struct run_configuration <: Config_T
 
     R0::Float64
 
-    delay_infection_control::Float64
-
-    test_compliance_staff::Float64
+    delay_infection_control::Int64
 
     seed_infections::Int64
     rng_infections::AbstractRNG
@@ -126,19 +124,12 @@ function setup_run_default!(config::Config_T, data_dirname::String)
 
         # add control parameter values to config:
         # response delay  
-        delay_infection_control = 2.0 # default 
+        delay_infection_control = 2 # default 
             description = "delay between outbreak declaration and implementation of infection control (days)"
             config_line = (@Name(delay_infection_control) * ", " * description * ", " * "$delay_infection_control" )
             config_str = config_str*config_line*"\n"
             # assign to struct property. 
             config.delay_infection_control = delay_infection_control
-
-        # compliance with scheduled testing 
-        test_compliance_staff = 1.0 # default 
-            description = "staff compliance with scheduled testing (probability of compliance with each test)"
-            config_line = (@Name(test_compliance_staff) * ", " * description * ", " * "$test_compliance_staff" )
-            config_str = config_str*config_line*"\n"
-            config.test_compliance_staff = test_compliance_staff
 
 
         # setup random number generator: 
@@ -265,7 +256,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             # NOTE: this is not robust code, in future versions the distributions 
             # can be setup in a way that's more flexible. 
         
-        uniform_immunity = true #default 
+        uniform_immunity = false #default 
             description = "boolean flag true if all agent types have immunity drawn from the same distribution"
             config_line = (@Name(uniform_immunity) * ", " * description * ", " * "$uniform_immunity" )
             config_str = config_str*config_line*"\n"
@@ -349,7 +340,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
         
 
         #NOTE: this is now assigned from control parameter for test compliance. 
-        p_test_per_day_workers_baseline = config.test_compliance_staff #default 
+        p_test_per_day_workers_baseline = 0.0 #default 
             description = "compliance probability for worker tests (no outbreak)"
             config_line = (@Name(p_test_per_day_workers_baseline) * ", " * description * ", " * "$p_test_per_day_workers_baseline" )
             config_str = config_str*config_line*"\n"
@@ -362,7 +353,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config.p_test_per_day_residents_baseline = p_test_per_day_residents_baseline
 
         #NOTE: this is now assigned from control parameter for test compliance. 
-        p_test_per_day_workers_outbreak = config.test_compliance_staff #default 
+        p_test_per_day_workers_outbreak = 1.0 #default 
             description = "compliance probability for worker tests (outbreak)"
             config_line = (@Name(p_test_per_day_workers_outbreak) * ", " * description * ", " * "$p_test_per_day_workers_outbreak" )
             config_str = config_str*config_line*"\n"
@@ -527,12 +518,6 @@ function update_config!(config::Config_T)
         delay_infection_control = config.delay_infection_control
             description = "delay between outbreak declaration and implementation of infection control (days)"
             config_line = (@Name(delay_infection_control) * ", " * description * ", " * "$delay_infection_control" )
-            config_str = config_str*config_line*"\n"
-
-        # compliance with scheduled testing 
-        test_compliance_staff = config.test_compliance_staff
-            description = "staff compliance with scheduled testing (probability of compliance with each test)"
-            config_line = (@Name(test_compliance_staff) * ", " * description * ", " * "$test_compliance_staff" )
             config_str = config_str*config_line*"\n"
 
 
@@ -876,14 +861,26 @@ function set_immunity_dist!(config::Config_T)
     # default values (taken from facility-specific distributions or aggregates thereof.)
     # NOTE: larger sigma values reflect heterogeneity in timing and vaccine type in real facilities. 
     # NOTE: for reference, mu of approx. -1.5 corresponds to (for example) Pfizer dose 3 after 12 weeks of waning. 
-    config.log_mu_res = -1.47
-    config.log_sig_res = 1.34
+    if !config.uniform_immunity
+        config.log_mu_res = -1.47
+        config.log_sig_res = 1.34
 
-    config.log_mu_wG = -1.79
-    config.log_sig_wG = 1.43
+        config.log_mu_wG = -1.79
+        config.log_sig_wG = 1.43
 
-    config.log_mu_wM = -1.64
-    config.log_sig_wM = 1.51
+        config.log_mu_wM = -1.64
+        config.log_sig_wM = 1.51
+    else
+        config.log_mu_res = -1.47
+        config.log_sig_res = 1.34
+
+        config.log_mu_wG = -1.47
+        config.log_sig_wG = 1.34
+
+        config.log_mu_wM = -1.47
+        config.log_sig_wM = 1.34
+
+    end
 
     return
 

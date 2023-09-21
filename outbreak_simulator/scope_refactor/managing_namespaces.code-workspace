@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"name": "managing_namespaces",
+			"path": "../../../../../../training/JuliaTutorials/managing_namespaces"
+		},
+		{
+			"name": "scope_refactor",
+			"path": "."
+		},
+		{
+			"name": "original",
+			"path": "../original"
+		}
+	],
+	"settings": {
+		"julia.environmentPath": "c:\\Users\\czachreson\\Desktop\\compositions_in_progress\\RACF_A_outbreak_response\\code\\RACF_C19_A_repo\\outbreak_simulator\\scope_refactor"
+	}
+}

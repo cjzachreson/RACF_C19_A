@@ -726,9 +726,9 @@ function main()
     immunity_states = [true]
     
     # delay values in days 
-    delay_vals = Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
+    delay_vals = Int64[5]#Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
     # compliance with scheduled testing (workers only)
-    test_compliance = Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
+    test_compliance = Float64[0.5]#Float64[0.5]#Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
     
     # global modulation of PPE efficacy relative to default (NOTE: range [0.0, 1.0], 1.0 is default value, all other values reduce from default.)
     PPE_efficacy_scalers = Float64[1.0]
@@ -811,13 +811,17 @@ function main()
                         # modify any of the default config
                         # parameters that are adjusted by the run loop
                         # globals.
+
+                        #for comparison with original implementation 
+                        config_run.uniform_immunity = false
                         
                         Setup_RACF.set_immunity_dist!(config_run)
                         
                         config_run.immunity = im
                         config_run.PPE_available = false
                         config_run.delay_infection_control = delay_val_i
-                        config_run.test_compliance_staff = test_compliance_j
+                        config_run.p_test_per_day_workers_baseline = test_compliance_j
+                        config_run.p_test_per_day_workers_outbreak = test_compliance_j
 
                         config_run.eff_IC_resident_resident *= PPE_efficacy_relative_to_default
                         config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default

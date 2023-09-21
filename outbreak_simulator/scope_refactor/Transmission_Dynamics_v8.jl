@@ -338,9 +338,15 @@ end
 
 
 # sample infectious contacts (network-based transmission)
-function compute_transmission!(all_transmissions::DataFrame, infected_agents:: Dict{Int64, Float64}, agents::Agents_RACF.Agents_T,
-                               day_of_week::Int64, w_tot_d::Dict{Int64, Float64}, 
-                               contact_rate::Float64, bkg_contact_rate::Float64, bkg_contact_rate_iso::Float64, t::Float64,
+function compute_transmission!(all_transmissions::DataFrame, 
+                               infected_agents:: Dict{Int64, Float64}, 
+                               agents::Agents_RACF.Agents_T,
+                               day_of_week::Int64, 
+                               w_tot_d::Dict{Int64, Float64}, 
+                               contact_rate::Float64, 
+                               bkg_contact_rate::Float64, 
+                               bkg_contact_rate_iso::Float64, 
+                               t::Float64,
                                config::Setup_RACF.Config_T)
 
     E_list_infectious_t = Networks_RACF.E_list()
@@ -369,7 +375,9 @@ function compute_transmission!(all_transmissions::DataFrame, infected_agents:: D
             #    println("check here")
             #end
 
-            Agents_RACF.add_source_edges_to_E_list!(E_list_infectious_t, a, active_contacts)#a.contacts[day_of_week])
+            Agents_RACF.add_source_edges_to_E_list!(E_list_infectious_t, 
+                                                    a, 
+                                                    active_contacts)#a.contacts[day_of_week])
         end
     end
 

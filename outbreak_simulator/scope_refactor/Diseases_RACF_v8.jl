@@ -173,6 +173,14 @@ end
 function set_infection_default!(infection::Infection_T, 
                                 pathogen::Disease_T, 
                                 config::Setup_RACF.Config_T)
+    
+    #moved these 4 up here so rng order is same as original implementation. 
+    infection.t_inc = rand(config.rng_infections, pathogen.inc_dist)
+    infection.q_inc = cdf(pathogen.inc_dist, infection.t_inc)
+    infection.t_rec = rand(config.rng_infections, pathogen.rec_dist)#t_rec::Float64
+    infection.beta_max = rand(config.rng_infections, pathogen.b_dist)#beta_max::Float64 
+    #
+
     ## pathogen reference
     infection.pathogen = pathogen
     ## name of pathogen 
@@ -181,10 +189,10 @@ function set_infection_default!(infection::Infection_T,
     ## latent period
     infection.t_latent = pathogen.latent_period # TODO: draw from distribution as with other intervals
     ## incubation period (time between exposure and symptom expression)
-    infection.t_inc = rand(config.rng_infections, pathogen.inc_dist)#t_inc::Float64
-    infection.q_inc = cdf(pathogen.inc_dist, infection.t_inc)#q_inc::Float64 NOTE: not sure if it will let me do this, need to check. *** Nope - need to pass as input to constructor. 
+    #infection.t_inc = rand(config.rng_infections, pathogen.inc_dist)#t_inc::Float64
+    #infection.q_inc = cdf(pathogen.inc_dist, infection.t_inc)#q_inc::Float64 NOTE: not sure if it will let me do this, need to check. *** Nope - need to pass as input to constructor. 
     ## recovery period (time between peak viral load and recovery)
-    infection.t_rec = rand(config.rng_infections, pathogen.rec_dist)#t_rec::Float64
+    #infection.t_rec = rand(config.rng_infections, pathogen.rec_dist)#t_rec::Float64
     ## symptom expression (bool symptomatic or not) "Will they express symptoms?"
     infection.symptomatic = rand(config.rng_infections) < (1.0 - pathogen.p_asymp)#symptomatic::Bool 
     ## symptom expression (bool expressing symptoms or not) "are they currently expressing symptoms?"
@@ -194,7 +202,7 @@ function set_infection_default!(infection::Infection_T,
     
     ### parameters determining force of infection
     ##maximum infectiousness (peaks at symptom onset)
-    infection.beta_max = rand(config.rng_infections, pathogen.b_dist)#beta_max::Float64 
+    #infection.beta_max = rand(config.rng_infections, pathogen.b_dist)#beta_max::Float64 
     infection.beta_min = infection.beta_max / pathogen.Vmax #beta_min::Float64 #Def: beta_max/Vmax #[NOTE: again, not sure if Julia will let me initialise in this way (does it know the value of beta_max?)] ***
 
     infection.k_inc = compute_kinc(infection.t_inc, pathogen)#k_inc::Float64 #rate of exponential increase of infectiousness during incubation *** (may need to initialise these after construction)

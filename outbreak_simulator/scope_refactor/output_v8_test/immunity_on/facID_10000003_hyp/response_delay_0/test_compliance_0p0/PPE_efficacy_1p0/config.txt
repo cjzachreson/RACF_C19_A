@@ -1,7 +1,6 @@
 parameter variable name, human-readable description, value 
 R0, Reproductive ratio, calibrated to beta and timestep, 6.0
-delay_infection_control, delay between outbreak declaration and implementation of infection control (days), 0.0
-test_compliance_staff, staff compliance with scheduled testing (probability of compliance with each test), 0.0
+delay_infection_control, delay between outbreak declaration and implementation of infection control (days), 0
 seed_infections, random number seed for infection dynamics, 13
 seed_testing, random number seed for testing, 1
 seed_contacts, random number seed for contact dynamics, 1
@@ -22,7 +21,7 @@ w_res_diff_room, between residents in different rooms, 1.0
 ***
 immunity, boolean flag for whether to implement vaccine-derived protection, true
 immunity_from_dist, boolean flag for whether to draw immunity status from file or generate it for each run, true
-uniform_immunity, boolean flag true if all agent types have immunity drawn from the same distribution, true
+uniform_immunity, boolean flag true if all agent types have immunity drawn from the same distribution, false
 outbreak_control, boolean flag true outbreak control measures are implemented, true
 active_outbreak, boolean flag true outbreak has been detected and has not resolved, false
 PPE_available, boolean flag false PPE is not yet available, false
@@ -37,9 +36,9 @@ log_sig_wM, standard deviation of natural log neuts (medical staff), 1.51
 
 ***testing probabilities*** 
 p_test_per_day, prob. of testing an agent each day, only used if testing is not stratified by agent type, 0.2
-p_test_per_day_workers_baseline, compliance probability for worker tests (no outbreak), 1.0
+p_test_per_day_workers_baseline, compliance probability for worker tests (no outbreak), 0.0
 p_test_per_day_residents_baseline, robability of a resident testing if no outbreak, 0.05
-p_test_per_day_workers_outbreak, compliance probability for worker tests (outbreak), 1.0
+p_test_per_day_workers_outbreak, compliance probability for worker tests (outbreak), 0.0
 p_test_per_day_residents_outbreak, probability of a resident testing during an outbreak, 0.5
 p_test_if_symptomatic, probability of a symptomatic individual testing if on site, 1.0
 

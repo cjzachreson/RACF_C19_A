@@ -38,9 +38,9 @@ global output_dir_L1 = "" #placeholder
 global immunity_states = [true]
 
 # delay values in days 
-global delay_vals = Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
+global delay_vals = Int64[0]#Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
 # compliance with scheduled testing (workers only)
-global test_compliance = Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
+global test_compliance = Float64[0.0]#Float64[0.5]#Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
 
 # global modulation of PPE efficacy relative to default (NOTE: range [0.0, 1.0], 1.0 is default value, all other values reduce from default.)
 global PPE_efficacy_scalers = Float64[1.0]
@@ -711,7 +711,7 @@ for im in immunity_states
             global immunity_label = "immunity_off"
         end
 
-        global output_dir_L1 = pwd() * "\\output_v7_test\\$immunity_label\\$fac_label"
+        global output_dir_L1 = pwd() * "\\output_v7_test_2\\$immunity_label\\$fac_label"
         if !ispath(output_dir_L1)
             mkpath(output_dir_L1)
         end
