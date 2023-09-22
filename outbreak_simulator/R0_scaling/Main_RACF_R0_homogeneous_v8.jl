@@ -657,7 +657,7 @@ function main()
         for i in 1:1#n_populations #facility indices
 
             fac_i = i 
-            fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
+            fac_label = "facID_$(fac_list.service_id[fac_i])_homo"
             output_dir_L1 = pwd() * "\\output_v8_R0_test\\$immunity_label\\$fac_label\\$n_label"
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
