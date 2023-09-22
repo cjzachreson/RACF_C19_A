@@ -1,5 +1,5 @@
 parameter variable name, human-readable description, value 
-transmission_scaler, Adjusts mean transmission rate up or down, 0.01
+transmission_scaler, Adjusts mean transmission rate up or down, 0.15
 delay_infection_control, delay between outbreak declaration and implementation of infection control (days), 0
 seed_infections, random number seed for infection dynamics, 13
 seed_testing, random number seed for testing, 1

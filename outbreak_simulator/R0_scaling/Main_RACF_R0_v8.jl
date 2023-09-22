@@ -47,7 +47,7 @@ import .Facility_Structure
 include("./Outbreak_Response_RACF_v8.jl")
 import .Outbreak_Response
 
-include("./Transmission_Dynamics_v8.jl")
+include("./Transmission_Dynamics_R0_v8.jl")
 import .Transmission_Dynamics
 
 
@@ -55,18 +55,16 @@ global NETWORK_TEST = false
 
 # define the main function 
 #TODO: this should be the run function, not the main function
-function run!(config::Setup_RACF.Config_T, 
+function run_R0!(config::Setup_RACF.Config_T, 
               pop::Setup_RACF.Pop_Input_T, 
               facility::Facility_Structure.Facility_T,
-              n_outbreaks_tot::Int64,
-              output_dirname::String) # ! because run can modify config. 
+              n_instances_tot::Int64,
+              output_dirname::String)::Float64 # ! because run can modify config. 
     
     #output linelist vectors 
 
-    tot_infections = Vector{Int64}()
-    tot_detections = Vector{Int64}()
-    time_to_detection = Vector{Float64}()
-    tot_infections_at_detection = Vector{Float64}()
+    tot_transmissions = Vector{Int64}()
+
 
     output_linelist = DataFrame(
         run_id = Int64[], 
@@ -75,18 +73,11 @@ function run!(config::Setup_RACF.Config_T,
         n_staff = Int64[],
         total_FTE = Float64[],
         index_case_type = String[],
-        OB_declared = Bool[],
-        t_OB_on = Float64[],
-        t_OB_off = Float64[],
-        I_cum_OB_on = Int64[],
-        Det_cum_OB_on = Int64[],
-        F_max = Int64[],
-        Iso_max = Int64[],
         I_tot_staff = Int64[],
-        Det_tot_staff = Int64[],
         I_tot_res = Int64[],
-        Det_tot_res = Int64[],
-        FTE_def_max = Float64[]
+        index_case_id = Int64[],
+        index_case_beta_max = Float64[],
+        t_index_case_recovery = Float64[]
     )
 
 
@@ -96,9 +87,12 @@ function run!(config::Setup_RACF.Config_T,
 
     #n_outbreaks_tot = 1000 # setting this a global. 
     n_outbreaks = 0
+    n_instances = 0
     i = 0
-    while n_outbreaks < n_outbreaks_tot
+    while n_instances < n_instances_tot
         #i in 1:n_runs
+
+        n_instances += 1
 
         config.active_outbreak = false
 
@@ -115,27 +109,7 @@ function run!(config::Setup_RACF.Config_T,
         push!(output_linelist.run_id, i)
         push!(output_linelist.facility_id, facility.id)
         
-
-        #note the below are placeholders, that will be modified if the appropriate triggers are activated:
-        push!(output_linelist.OB_declared, false)
-        push!(output_linelist.t_OB_on, NaN)
-        push!(output_linelist.t_OB_off, NaN)
-        push!(output_linelist.I_cum_OB_on, -1) #note: no nan type for integers 
-        push!(output_linelist.Det_cum_OB_on, -1)
-
-            
-        F_max = 0 # maximum number of concurrently furloughed staff 
-        Iso_max = 0 # maximum number of isolated residents 
-        FTE_def_max = 0 # maximum FTE deficit from furlough 
-
-
         ## ***** ##
-        
-        # 2022 09 14 no longer using this - generating network from room assignments locally 
-        #parse network input as neighbour lists:
-        #N_lists = N_list()
-        #populate_neighbour_lists_from_DataFrame!(N_lists.id_to_contacts, N_lists_str)
-        ##
         #initialise Agents 
         agents = Agents_RACF.Agents()
 
@@ -282,33 +256,15 @@ function run!(config::Setup_RACF.Config_T,
         day_of_week_i = convert(Int64, floor(mod(t_i, 7))) + 1 # first day. 
 
         #dt is defined in setup # dt = 0.1 (2022 08 17)
-
         #index case id
-        #index_case_id = minimum(keys(agents.workers_G)) #first worker (id 101 in this example) 
-
-        # if config.resident_index_case && config.worker_index_case
-        #     index_case_id = Transmission_Dynamics.select_random_agent(agents, 
-        #                                                               day_of_week_i,
-        #                                                               config)
-        # elseif config.resident_index_case
-        #     index_case_id = Transmission_Dynamics.select_random_resident(agents,
-        #                                                                  config)
-        # elseif config.worker_index_case
-        #     #index_case_id = select_random_general_staff(agents, day_of_week_i)
-        #     index_case_id = Transmission_Dynamics.select_random_worker(agents, 
-        #                                                                day_of_week_i,
-        #                                                                config)
-        # end
-
-        #for estimating R0 the index case is randomly sampled by the fraction
-        # of total edge weight involving them. 
-
         #note this returns a vector
         index_case_id = Agents_RACF.select_random_agents_by_weight(agents, config, 1)
-        # TODO: run validation to make sure this works. 
         index_case_id = index_case_id[1]
 
+        #println("\n****run:$i, index case: $index_case_id")
 
+        push!(output_linelist.index_case_id, index_case_id)
+        
 
         if Agents_RACF.is_worker(agents.All[index_case_id])
             push!(output_linelist.index_case_type, "worker")
@@ -325,6 +281,8 @@ function run!(config::Setup_RACF.Config_T,
                                             time_infected, 
                                             infected_agents,
                                             config)
+
+        push!(output_linelist.index_case_beta_max, agents.All[index_case_id].infections["Default"].beta_max)
 
 
         # define some parameters defining contact rates 
@@ -369,6 +327,7 @@ function run!(config::Setup_RACF.Config_T,
                 termination_flag = true
             end
 
+
             t = convert(Float64, step) * config.dt 
             day_of_week = convert(Int64, ceil(mod(t-small_num, 7))) # day is an integer 
             day = convert(Int64, ceil(t - small_num)) # first day. 
@@ -390,6 +349,11 @@ function run!(config::Setup_RACF.Config_T,
             # iterate through infected agents and update
             # infection status of each.  
             Transmission_Dynamics.update_infections!(agents, infected_agents, config)
+
+            if !Transmission_Dynamics.is_infected(agents.All[index_case_id], "Default")
+                termination_flag = true 
+                push!(output_linelist.t_index_case_recovery, t)
+            end
 
             #check for symptoms: 
 
@@ -419,21 +383,6 @@ function run!(config::Setup_RACF.Config_T,
                                                              isolated_residents, 
                                                              t)
                 
-                F_t = length(removed_workers)
-                if F_t > F_max
-                    F_max = F_t # maximum number of concurrently furloughed staff 
-                end
-
-                Iso_t = length(isolated_residents)
-                if Iso_t > Iso_max
-                    Iso_max = Iso_t # maximum number of isolated residents 
-                end
-                
-                FTE_def_t = Agents_RACF.compute_FTE_deficit(agents, removed_workers)
-                if FTE_def_t > FTE_def_max
-                    FTE_def_max = FTE_def_t # maximum FTE deficit from furlough 
-                end
-                
 
                 worker_ids_to_remove = Array{Int64, 1}()
                 resident_ids_to_isolate = Array{Int64, 1}() 
@@ -447,9 +396,6 @@ function run!(config::Setup_RACF.Config_T,
                 if config.active_outbreak
                     time_since_outbreak_declared += 1 # integer increase b/c it's in the new_day scope 
                 end
-
-                
-
 
                 # NOTE: Do we assume RATs are available immediately after outbreak declaration, 
                 # or should delay be applied to this as well? 
@@ -554,31 +500,6 @@ function run!(config::Setup_RACF.Config_T,
                 # count detections from last 7 days, if > 0, we have an active outbreak, otherwise we don't_detected
                 #println("\n****\nt=$t: new cases last 7 days: $n_cases_last_7")
 
-                # declare active outbreak, or delcare active outbreak over. 
-                if !(config.active_outbreak)
-                    OB_flag = Outbreak_Response.declare_outbreak(all_detections, t)
-                    if OB_flag
-                        config.active_outbreak = true
-                        n_outbreaks += 1 
-                        println("\n****run:$i")
-                        println("active outbreak declared at time $t")
-                        println("there are: $(size(all_transmissions,1)) infections ")
-                        println("total outbreaks: $n_outbreaks")
-                        output_linelist.OB_declared[i] = true 
-                        output_linelist.t_OB_on[i] = t
-                        output_linelist.I_cum_OB_on[i] = size(all_transmissions,1) + 1 # add one to include index case 
-                        output_linelist.Det_cum_OB_on[i] = size(all_detections, 1) 
-                    end
-                else
-                    OB_over_flag = Outbreak_Response.outbreak_over(all_detections, t)
-                    if OB_over_flag
-                        config.active_outbreak = false
-                        println("active outbreak over at time $t")
-                        output_linelist.t_OB_off[i] = t
-                        termination_flag = true
-                    end
-                end
-
             end 
             
             # this now implements PPE when outbreak is active. 
@@ -591,7 +512,7 @@ function run!(config::Setup_RACF.Config_T,
                 bkg_contact_rate *= (1.0 - config.resident_lockdown_efficacy)
             end
 
-            Transmission_Dynamics.compute_transmission!(all_transmissions, 
+            Transmission_Dynamics.compute_transmission_R0!(all_transmissions, 
                                                         infected_agents, 
                                                         agents,
                                                         day_of_week, 
@@ -600,7 +521,8 @@ function run!(config::Setup_RACF.Config_T,
                                                         bkg_contact_rate, 
                                                         bkg_contact_rate_iso, 
                                                         t, 
-                                                        config)
+                                                        config,
+                                                        index_case_id)
 
         end
 
@@ -629,7 +551,7 @@ function run!(config::Setup_RACF.Config_T,
             end
         end
 
-        if config.write_transmission_tree_flag && output_linelist.OB_declared[i]
+        if config.write_transmission_tree_flag
             rand_label = now()
             rand_label = replace(string(rand_label), ":"=> "_")
             rand_label = replace(string(rand_label), "."=> "_")
@@ -649,11 +571,6 @@ function run!(config::Setup_RACF.Config_T,
             CSV.write("$(output_dir_run)\\$(ob_lab)transmission_tree_$rand_label.csv", all_transmissions)
         end
 
-        push!(output_linelist.F_max, F_max)# maximum number of concurrently furloughed staff 
-        push!(output_linelist.Iso_max, Iso_max) # maximum number of isolated residents 
-        push!(output_linelist.FTE_def_max, FTE_def_max) # maximum FTE deficit from furlough 
-
-
         # count total infections and detections in staff and residents 
 
         I_tot_staff = Agents_RACF.count_worker_infections(agents, all_transmissions)
@@ -668,57 +585,30 @@ function run!(config::Setup_RACF.Config_T,
         end
 
         push!(output_linelist.I_tot_staff, I_tot_staff) 
-        push!(output_linelist.Det_tot_staff, Det_tot_staff) 
         push!(output_linelist.I_tot_res, I_tot_res) 
-        push!(output_linelist.Det_tot_res, Det_tot_res) 
-
-
-
-        if isempty(all_transmissions)
-            total_infections = 1
-        else
-            total_infections = size(all_transmissions, 1) + 1 # + 1 is for index case. 
-        end
 
         #println("total infections for run: $total_infections")
 
-        push!(tot_infections, total_infections)
+        push!(tot_transmissions, size(all_transmissions, 1))
         
-        if !isempty(all_detections)   
-            t_first_detection = minimum(all_detections.time_detected)
-            total_detections = size(all_detections, 1)
-            
-
-            total_infections_at_detection = size(all_transmissions[all_transmissions.time .< t_first_detection, :], 1) + 1
-
-        else
-            total_detections = 0
-            t_first_detection = NaN
-            total_infections_at_detection = NaN
-            
-        end
-        push!(time_to_detection, t_first_detection)
-        push!(tot_detections, total_detections)
-        push!(tot_infections_at_detection, total_infections_at_detection)
+        # some testing for R0 implementation:
+        # if (I_tot_staff + I_tot_res) > 10
+        #     print(all_transmissions)
+        # end
     
     end
 
-    println("avg. total infections: $(mean(tot_infections))")
-    println("avg. total detected cases: $(mean(tot_detections))")
-    println("avg. t first detection: $(mean(time_to_detection[.!isnan.(time_to_detection)]))")
-    println("avg. infections at first detection: $(mean(tot_infections_at_detection[.!isnan.(tot_infections_at_detection)]))")
+    println("avg. secondary cases: $(mean(tot_transmissions))")
 
     output_fname = "$(output_dirname)\\output_summary.csv"
     output_linelist_fname = "$(output_dirname)\\output_linelist.csv"
 
-    output = DataFrame(I_tot = tot_infections, 
-                    I_detected = tot_detections, 
-                    t_first_detection = time_to_detection, 
-                    I_t_detection = tot_infections_at_detection)
+    output = DataFrame(secondary_cases_tot = tot_transmissions)
 
     CSV.write(output_fname, output)
     CSV.write(output_linelist_fname, output_linelist)
 
+    return mean(tot_transmissions)
 
 
 end
@@ -734,9 +624,10 @@ function main()
     
     #vaccine-acquired immunity: 
     immunity_states = Bool[false]
-    transmission_scalers = collect(0.01:0.01:0.1)
+    transmission_scalers = collect(0.025:0.025:0.4)
     
-    n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
+    n_instances_tot = 1000 # how many instances of the primary case simulation
+    n_label = "n_$n_instances_tot"
     # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
     
     # 2022 09 19 : tests 
@@ -757,29 +648,32 @@ function main()
 
     for im in immunity_states 
 
+        if im
+            immunity_label = "immunity_on"
+        else
+            immunity_label = "immunity_off"
+        end
+
         for i in 1:1#n_populations #facility indices
 
             fac_i = i 
+            fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
+            output_dir_L1 = pwd() * "\\output_v8_R0_test\\$immunity_label\\$fac_label\\$n_label"
+            if !ispath(output_dir_L1)
+                mkpath(output_dir_L1)
+            end
 
+            secondary_cases = zeros(size(transmission_scalers))
+            it = 0
             for tscale_j in transmission_scalers
+                it += 1
 
-                fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
+                
                 
                 data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$fac_label"
 
                 if !ispath(data_dirname)
                     continue 
-                end
-
-                if im
-                    immunity_label = "immunity_on"
-                else
-                    immunity_label = "immunity_off"
-                end
-
-                output_dir_L1 = pwd() * "\\output_v8_R0_test\\$immunity_label\\$fac_label"
-                if !ispath(output_dir_L1)
-                    mkpath(output_dir_L1)
                 end
 
                 tscale_str = replace("$tscale_j", "."=> "p")
@@ -821,9 +715,22 @@ function main()
                 facility = Facility_Structure.facility()
                 facility.id = fac_list.service_id[fac_i]
 
-                run!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
+                println("*****running R0 simulator for <beta_max> = $tscale_j*****")
+                
+                R0_est = run_R0!(config_run, pop_run, facility, n_instances_tot, output_dir_fac)
+                println("R0_est = $R0_est")
+                println("**********")
+
+                secondary_cases[it] = R0_est
 
             end
+
+            output_main_R0 = DataFrame(beta = transmission_scalers, 
+                                       R_est = secondary_cases)
+
+            output_fname = "$output_dir_L1\\beta_vs_R_est.csv"
+
+            CSV.write(output_fname, output_main_R0)
 
         end
 
