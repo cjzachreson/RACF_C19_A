@@ -57,6 +57,7 @@ end
 
 
 # Initialise rooms sturcture: 
+
 function populate_Rooms_from_Agents!(rooms::Rooms_T, agents::Agents_RACF.Agents_T)
 
 
@@ -137,6 +138,42 @@ function populate_Rooms_from_Agents!(rooms::Rooms_T, agents::Agents_RACF.Agents_
             end
             room = rooms_d[rm_id]
             # add worker agent to room 
+            push!(room.agent_ids, a.id) 
+            push!(room.resident_ids, a.id) 
+            room.N_residents += 1
+        
+        end
+    end
+
+
+end
+
+function populate_Rooms_from_Agents_no_workers!(rooms::Rooms_T, agents::Agents_RACF.Agents_T)
+
+
+    #identify number of days in roster 
+    n_roster_days = 7
+
+    # iterate through agents: 
+
+    for (id, a) in agents.residents
+        # for a resident, the room is just an integer 
+        rm_id = a.room 
+        for d in 1:n_roster_days
+            # check if Rooms has any entries for d 
+            if !haskey(rooms.Day_to_Rooms, d)
+                # check room set for day d 
+                rooms.Day_to_Rooms[d] = Dict{Int64, Room_T}()
+                
+            end
+            rooms_d = rooms.Day_to_Rooms[d]
+            
+            # check if room list for day d has room id
+            if !haskey(rooms_d, rm_id)
+                rooms_d[rm_id] = Room(rm_id)
+            end
+            room = rooms_d[rm_id]
+            # add resident agent to room 
             push!(room.agent_ids, a.id) 
             push!(room.resident_ids, a.id) 
             room.N_residents += 1

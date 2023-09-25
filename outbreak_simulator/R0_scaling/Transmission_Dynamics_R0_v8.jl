@@ -575,6 +575,77 @@ function compute_transmission_R0!(all_transmissions::DataFrame,
 
 end
 
+# sample infectious contacts (network-based transmission)
+function compute_transmission_R0_homo!(all_transmissions::DataFrame, 
+                                       infected_agents:: Dict{Int64, Float64}, 
+                                       agents::Agents_RACF.Agents_T,
+                                       bkg_contact_rate::Float64, 
+                                       bkg_contact_rate_iso::Float64, 
+                                       t::Float64,
+                                       config::Setup_RACF.Config_T,
+                                       index_case_id::Int64)
+
+    #iterate over infected agents and add edges to infectious E_list
+    infected_resident_ids = Vector{Int64}() # for background contact sampling 
+    
+    # for R0 calibration, we only want to allow transmission from the index case. 
+    id = index_case_id
+    
+    if is_infected(agents.All[index_case_id], "Default")
+
+        a = agents.All[id] 
+        if Agents_RACF.is_resident(a) # queuing for background contacts. 
+            push!(infected_resident_ids, a.id) 
+        end 
+
+        edges_to_evaluate = Networks_RACF.E_list()
+        
+        add_background_contacts_homo!(edges_to_evaluate, 
+                                infected_resident_ids, 
+                                agents, 
+                                bkg_contact_rate, 
+                                config )
+
+        # 2022 09 19 testing: 
+        all_edges_good = test_contacts(edges_to_evaluate, agents)
+        if !all_edges_good
+            println("WARNING: invalid infectious contacts found! Check network.")
+        end
+
+
+        # compute pairwise transmission over edges: 
+        # there is still the possibility of selecting 
+        # edges between infected individuals, so we'll have to exclude those: 
+        for e in edges_to_evaluate.edges
+
+            source = agents.All[e.source_id]
+            target = agents.All[e.target_id]
+
+            # NOTE: adding PPE flag to this condition (2022 09 23)
+            if ( config.active_outbreak && config.outbreak_control && config.PPE_available) 
+                
+                transmission_occurred = transmit_infection_AOB!(source, target, t, infected_agents, config)
+            else
+                transmission_occurred = transmit_infection!(source, target, t, infected_agents, config)
+            end
+        
+            if transmission_occurred
+                if Agents_RACF.is_worker(target)
+                    if target.is_medical 
+                        push!(all_transmissions, (source.id, target.id, t, 3))
+                    else 
+                        push!(all_transmissions, (source.id, target.id, t, 2))
+                    end
+                else
+                    push!(all_transmissions, (source.id, target.id, t, 1))
+                end
+            end
+        end
+
+    end
+
+end
+
 # testing utility: 
 function test_contacts(edges_to_evaluate::Networks_RACF.E_list_T, 
                        agents::Agents_RACF.Agents_T)::Bool
@@ -655,6 +726,39 @@ function add_background_contacts!(edges_out::Networks_RACF.E_list_T,
             while n_sampled < n_to_sample
                 
                 target_id = sample(config.rng_contacts, resident_ids, Weights(iso_weights)) # sampling background contacts from residents only
+                
+                if (target_id != source_id)
+                    new_edge = Networks_RACF.Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
+                    push!(edges_out.edges, new_edge)
+                    n_sampled += 1
+                end
+            end
+        end
+    end
+
+end
+
+function add_background_contacts_homo!(edges_out::Networks_RACF.E_list_T, 
+                                        source_ids::Vector{Int64}, 
+                                        agents::Agents_RACF.Agents_T, 
+                                        bkg_contact_rate::Float64, 
+                                        config::Setup_RACF.Config_T)
+
+    dist = Poisson(bkg_contact_rate)
+
+    resident_ids = collect(keys(agents.residents))
+
+    for source_id in source_ids
+
+
+        n_to_sample = rand(config.rng_contacts, dist)
+
+        
+        if n_to_sample > 0
+            n_sampled = 0
+            while n_sampled < n_to_sample
+                
+                target_id = sample(config.rng_contacts, resident_ids) # sampling background contacts from residents only
                 
                 if (target_id != source_id)
                     new_edge = Networks_RACF.Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 

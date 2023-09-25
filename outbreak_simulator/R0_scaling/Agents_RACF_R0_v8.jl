@@ -252,7 +252,8 @@ end
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of worker agents [id -> agent object]
 function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T}, 
-                                          workers_DF::DataFrame)#, N_lists)  
+                                          workers_DF::DataFrame,
+                                          config::Setup_RACF.Config_T)#, N_lists)  
     
     n_workers = size(workers_DF, 1)
     
@@ -284,7 +285,9 @@ function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T},
     
         #add_neighbours_from_N_list!(workers_out[id_i], N_lists, id_i)
     
-        initialise_immunity_status!(workers_out[id_i].immunity, workers_DF[workers_DF.id .== id_i, :])
+        initialise_immunity_status!(workers_out[id_i].immunity, 
+                                    workers_DF[workers_DF.id .== id_i, :], 
+                                    config)
     
     end
 
@@ -293,7 +296,8 @@ end
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of resident agents [id -> agent object]
 function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T}, 
-                                            residents_DF::DataFrame)#, N_lists)
+                                            residents_DF::DataFrame,
+                                            config::Setup_RACF.Config_T)#, N_lists)
     
     n_residents = size(residents_DF, 1)
     
@@ -317,7 +321,9 @@ function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T},
         #add_neighbours_from_N_list!(residents_out[id_i], N_lists, id_i)
 
         #add immunity status: 
-        initialise_immunity_status!(residents_out[id_i].immunity, residents_DF[residents_DF.id .== id_i, :])
+        initialise_immunity_status!(residents_out[id_i].immunity, 
+                                    residents_DF[residents_DF.id .== id_i, :], 
+                                    config)
 
     end
 end
@@ -396,6 +402,41 @@ function populate_residents_from_DataFrame_imDist!(residents_out::Dict{Int64, Ag
 
     end
 end
+
+
+# for the R0 script, homogeneous populations reequire a reset function
+# this allows the agent population to be re-set without re-allocating
+# all network connections in the structured population. 
+# doing so should substantially increase efficiency for dense networks. 
+function reset_agent_states!(agents::Dict{Int64, Agent_T},
+                             pdist::Distribution, 
+                             config::Setup_RACF.Config_T )
+
+    for (id, a) in agents
+        reset_agent_state!(a, pdist, config)
+    end
+
+end
+
+# resets infection and immunity status 
+function reset_agent_state!(a::Agent_T,                          
+                            pdist::Distribution, 
+                            config::Setup_RACF.Config_T)
+
+    # first, resample immunity status: 
+    initialise_immunity_status_from_pdist!(a.immunity, 
+                                           pdist, 
+                                           config)
+
+    empty!(a.infections) # pathogen name  => infection
+    a.n_infections = 0 #total number of times infected (all time)
+    a.t_detected = -1.0 # time of most recent positive test
+    a.t_removed= -1.0 # positive if agent is removed from the facility (reversible)
+
+end
+
+
+
 
 #utilities: 
 function is_worker(a::Agent_T)::Bool

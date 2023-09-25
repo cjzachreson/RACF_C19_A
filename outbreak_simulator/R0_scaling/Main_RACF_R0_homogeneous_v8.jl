@@ -38,7 +38,7 @@ import .Networks_RACF
 include("./Diseases_RACF_v8.jl")
 import .Diseases_RACF
 
-include("./Agents_RACF_v8.jl")
+include("./Agents_RACF_R0_v8.jl")
 import .Agents_RACF
 
 include("./Facility_Structure_v8.jl")
@@ -85,14 +85,102 @@ function run_R0!(config::Setup_RACF.Config_T,
     diseases = Diseases_RACF.diseases()
     Diseases_RACF.set_disease_dict!(diseases, config)
 
+
+
+
+    ## ***** ##
+    #initialise Agents 
+    agents = Agents_RACF.Agents()
+
+
+    ln_neut_dist_res = Normal(config.log_mu_res, config.log_sig_res)
+    ln_neut_dist_wG = Normal(config.log_mu_wG, config.log_sig_wG)
+    ln_neut_dist_wM = Normal(config.log_mu_wM, config.log_sig_wM)
+
+    Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_G, pop.workers_G_str, ln_neut_dist_wG, config)#, N_lists.id_to_contacts)
+    N_workers_G = length(agents.workers_G) #note size() not defined for dict
+    #println("created $N_workers_G general staff members")
+
+    #initialise medical staff
+    Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_M, pop.workers_M_str, ln_neut_dist_wM, config)#, N_lists.id_to_contacts)
+    N_workers_M = length(agents.workers_M) #note size() not defined for dict
+    #println("created $N_workers_M medical staff members")
+
+    #initialise residents
+    Agents_RACF.populate_residents_from_DataFrame_imDist!(agents.residents, pop.residents_str, ln_neut_dist_res, config)#, N_lists.id_to_contacts)
+    N_residents = length(agents.residents) #note size() not defined for dict
+    #println("created $N_residents residents")
+
+    agents.All = merge(agents.residents, 
+                        agents.workers_G, 
+                        agents.workers_M)
+
+
+    # construct networks: 
+        #populate rooms (new on 2022 09 13, need it for re-distribution of labour during 
+    # surge rostering from furloughs)
+    # rooms = Facility_Structure.Rooms()
+    # Facility_Structure.populate_Rooms_from_Agents_no_workers!(rooms, agents)
+    # println("assigned agents to rooms")
+
+    # # assign neighbour lists from rooms:
+    # N_lists_new = Networks_RACF.N_list_temporal_multigraph() 
+    # n_days = 7 #hacked in.
+    # for d in 1:n_days
+    #     N_lists_new.day_to_N_list[d] = Networks_RACF.N_list()
+    #     N_list_d = N_lists_new.day_to_N_list[d]
+    #     Facility_Structure.populate_N_lists_d_from_Rooms!(rooms, N_list_d, d)
+    # end
+    # println("populated neighbour lists")
+
+    # # assign agent contacts from N lists constructed above from rooms 
+    # Agents_RACF.assign_contacts!(agents, N_lists_new) 
+    # println("assigned contacts")
+    # #note - this will completely replace the existing contact list 
+
+    # # adjust pairwise weights based on model-specific bias 
+    # # NOTE: this involves GLOBAL control parameters. 
+    # # NOTE: adjusting weights in agent neighbour lists 
+    # # also adjusts the weights in N_lists (referencing)
+    # Agents_RACF.pairwise_weights!(agents, config)
+
+    # println("adjusted pairwise weights")
+
+    # edge_lists_all = Networks_RACF.E_list_temporal()
+    # # iterate through agents and contacts and generate 
+    # # full edge lists (all possible contacts)
+    # Agents_RACF.fill_E_lists_all!(edge_lists_all, agents)
+    # println("created edge lists for each day")
+
+    # # compute weight totals for each day (denominators used to compute sampling rate)
+    # w_tot_d = Dict{Int64, Float64}() # day -> w_tot
+    # for (d, EL) in edge_lists_all.day_to_E_list
+    #     #w_tot_d[d] = sum_edge_weights_EList(EL) # directed
+    #     w_tot_d[d] = Networks_RACF.sum_edge_weights_EList(EL) / 2.0 #undirected
+    # end
+    # NOTE: currently sum_edge_weights_EList() double-counts
+    # all interactions because edges are accessed 
+    # by searching neighbour lists, need the factor
+    # of two in the contact rate calculation
+    # because 'infectious' edges are only counted
+    # from the infected source. 
+
+
+
     #n_outbreaks_tot = 1000 # setting this a global. 
     n_outbreaks = 0
     n_instances = 0
     i = 0
     while n_instances < n_instances_tot
-        #i in 1:n_runs
 
         n_instances += 1
+
+        Agents_RACF.reset_agent_states!(agents.residents, ln_neut_dist_res, config)
+        Agents_RACF.reset_agent_states!(agents.workers_M, ln_neut_dist_wM, config)
+        Agents_RACF.reset_agent_states!(agents.workers_G, ln_neut_dist_wG, config)
+        println("initialisd agent infection status for run $n_instances")
+        # check to make sure agenets.All is reset appropriately. 
+
 
         config.active_outbreak = false
 
@@ -108,87 +196,13 @@ function run_R0!(config::Setup_RACF.Config_T,
         # fill any constant params into linelist: 
         push!(output_linelist.run_id, i)
         push!(output_linelist.facility_id, facility.id)
-        
-        ## ***** ##
-        #initialise Agents 
-        agents = Agents_RACF.Agents()
-
-        if config.immunity_from_dist
-
-            ln_neut_dist_res = Normal(config.log_mu_res, config.log_sig_res)
-            ln_neut_dist_wG = Normal(config.log_mu_wG, config.log_sig_wG)
-            ln_neut_dist_WM = Normal(config.log_mu_wM, config.log_sig_wM)
-
-            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_G, pop.workers_G_str, ln_neut_dist_wG, config)#, N_lists.id_to_contacts)
-            N_workers_G = length(agents.workers_G) #note size() not defined for dict
-            #println("created $N_workers_G general staff members")
-
-            #initialise medical staff
-            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_M, pop.workers_M_str, ln_neut_dist_WM, config)#, N_lists.id_to_contacts)
-            N_workers_M = length(agents.workers_M) #note size() not defined for dict
-            #println("created $N_workers_M medical staff members")
-
-            #initialise residents
-            Agents_RACF.populate_residents_from_DataFrame_imDist!(agents.residents, pop.residents_str, ln_neut_dist_res, config)#, N_lists.id_to_contacts)
-            N_residents = length(agents.residents) #note size() not defined for dict
-            #println("created $N_residents residents")
-
-
-
-        else #not used - this is applicable if neut values are included in population data input. 
-            # iterate through parsed input DataFrames and initialise workers/residents:
-            #initialise general staff
-            #NOTE: 2022 09 14 removed initialisation of network from file (done locally from room assignments now)
-            #populate_workers_from_DataFrame!(agents.workers_G, workers_G_str)#, N_lists.id_to_contacts)
-            #N_workers_G = length(agents.workers_G) #note size() not defined for dict
-            #println("created $N_workers_G general staff members")
-
-            #initialise medical staff
-            #populate_workers_from_DataFrame!(agents.workers_M, workers_M_str)#, N_lists.id_to_contacts)
-            #N_workers_M = length(agents.workers_M) #note size() not defined for dict
-            #println("created $N_workers_M medical staff members")
-
-            #initialise residents
-            #populate_residents_from_DataFrame!(agents.residents, residents_str)#, N_lists.id_to_contacts)
-            #N_residents = length(agents.residents) #note size() not defined for dict
-            #println("created $N_residents residents")
-
-        end
-
-
-
-        agents.All = merge(agents.residents, 
-                           agents.workers_G, 
-                           agents.workers_M)
 
         # add agent numbers to output list 
         push!(output_linelist.n_residents, N_residents)
         push!(output_linelist.n_staff, (N_workers_G + N_workers_M))
         push!(output_linelist.total_FTE, Agents_RACF.compute_total_FTE(agents))
 
-        #populate rooms (new on 2022 09 13, need it for re-distribution of labour during 
-        # surge rostering from furloughs)
-        rooms = Facility_Structure.Rooms()
-        Facility_Structure.populate_Rooms_from_Agents!(rooms, agents)
 
-        # assign neighbour lists from rooms:
-        N_lists_new = Networks_RACF.N_list_temporal_multigraph() 
-        n_days = 7 #hacked in.
-        for d in 1:n_days
-            N_lists_new.day_to_N_list[d] = Networks_RACF.N_list()
-            N_list_d = N_lists_new.day_to_N_list[d]
-            Facility_Structure.populate_N_lists_d_from_Rooms!(rooms, N_list_d, d)
-        end
-
-        # assign agent contacts from N lists constructed above from rooms 
-        Agents_RACF.assign_contacts!(agents, N_lists_new) 
-        #note - this will completely replace the existing contact list 
-
-        # adjust pairwise weights based on model-specific bias 
-        # NOTE: this involves GLOBAL control parameters. 
-        # NOTE: adjusting weights in agent neighbour lists 
-        # also adjusts the weights in N_lists (referencing)
-        Agents_RACF.pairwise_weights!(agents, config)
 
         if NETWORK_TEST
             # TEST: 2022 09 20
@@ -207,27 +221,6 @@ function run_R0!(config::Setup_RACF.Config_T,
         Outbreak_Response.initialise_baseline_testing_schedule!(agents, config)
 
         ##*****##
-
-        #println("adjusted pairwise weights")
-
-        edge_lists_all = Networks_RACF.E_list_temporal()
-        # iterate through agents and contacts and generate 
-        # full edge lists (all possible contacts)
-        Agents_RACF.fill_E_lists_all!(edge_lists_all, agents)
-        #println("created edge lists for each day")
-
-        # compute weight totals for each day (denominators used to compute sampling rate)
-        w_tot_d = Dict{Int64, Float64}() # day -> w_tot
-        for (d, EL) in edge_lists_all.day_to_E_list
-            #w_tot_d[d] = sum_edge_weights_EList(EL) # directed
-            w_tot_d[d] = Networks_RACF.sum_edge_weights_EList(EL) / 2.0 #undirected
-        end
-        # NOTE: currently sum_edge_weights_EList() double-counts
-        # all interactions because edges are accessed 
-        # by searching neighbour lists, need the factor
-        # of two in the contact rate calculation
-        # because 'infectious' edges are only counted
-        # from the infected source. 
 
         # make a dict for infected agents id -> time infected
         infected_agents = Dict{Int64, Float64}()
@@ -292,24 +285,24 @@ function run_R0!(config::Setup_RACF.Config_T,
         n_residents_high_needs = Agents_RACF.count_high_needs_residents(agents)
         n_residents_reg_needs = Agents_RACF.count_reg_needs_residents(agents)
 
+        n_residents = n_residents_high_needs + n_residents_reg_needs 
+
         contact_rate_per_day = 
             convert(Float64, n_residents_high_needs) * 
             config.contact_rate_per_resident_per_day
         # applying the same factor of 3 applied to the contact weights between workers and residents. 
         contact_rate_per_day += 
             convert(Float64, n_residents_reg_needs) * (config.contact_rate_per_resident_per_day / 3.0)
-
-        #contact_rate_per_day = convert(Float64, N_residents) * contact_rate_per_resident_per_day
         
         contact_rate_per_step = contact_rate_per_day * config.dt 
+
 
         # background contacts between residents (i.e., in shared meal spaces)
         # these are not included in the structured facility model
         # the implied structure is a fully-connected graph with uniform edge weight
-        #bkg_contact_rate_per_resident_per_day = 5.0 #NOTE: moved to setup_RACF.jl
         bkg_contact_rate_per_resident_per_step = config.bkg_contact_rate_per_resident_per_day * config.dt
 
-
+        #for homogeneous case, absorb all contacts into background contact algorithm: 
 
         # 2022 09 23 : including a delay between outbreak declaration and the implementation of measures 
         time_since_outbreak_declared = 0
@@ -355,6 +348,8 @@ function run_R0!(config::Setup_RACF.Config_T,
                 push!(output_linelist.t_index_case_recovery, t)
             end
 
+
+
             #check for symptoms: 
 
             # test with RATs 
@@ -363,166 +358,28 @@ function run_R0!(config::Setup_RACF.Config_T,
                 if isempty(infected_agents)
                     termination_flag = true
                 end
-
-                # iterate furlough periods for workers and re-instate 
-                # NOTE: 2022 09 15, now adds any re-instated workers back to their 
-                # assigned rooms. 
-                room_ids_to_update = Set{Int64}()
-                Outbreak_Response.update_absentees!(agents, 
-                                                    config.removal_period, 
-                                                    removed_workers, 
-                                                    t, 
-                                                    rooms, 
-                                                    room_ids_to_update)
-                # room_ids_to_update will now include all rooms where workers have been
-                # reinstated from furlough 
-
-                #iterate isolation periods for residents and re-instate
-                Outbreak_Response.update_isolated_residents!(agents, 
-                                                             config.removal_period, 
-                                                             isolated_residents, 
-                                                             t)
-                
-
-                worker_ids_to_remove = Array{Int64, 1}()
-                resident_ids_to_isolate = Array{Int64, 1}() 
-
-                # check to see whether to implement infection control after delay: 
-                if time_since_outbreak_declared >= config.delay_infection_control
-                    config.PPE_available = true #toggled on after delay. #see trigger for transmit_infection_AOB in #transmission_dynamics.jl  
-                end
-
-                # update delay clock for introduction of infection control measures: 
-                if config.active_outbreak
-                    time_since_outbreak_declared += 1 # integer increase b/c it's in the new_day scope 
-                end
-
-                # NOTE: Do we assume RATs are available immediately after outbreak declaration, 
-                # or should delay be applied to this as well? 
-                # For now, I'll assume tests are immediately available, but PPE stockpile is not. 
-                if (config.active_outbreak && config.outbreak_control)
-                    # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    Outbreak_Response.test_workers!(all_detections, 
-                                                    config.p_test_per_day_workers_outbreak, 
-                                                    agents, 
-                                                    infected_agents, 
-                                                    day_of_week, 
-                                                    t, 
-                                                    worker_ids_to_remove, 
-                                                    config)
-                    # test residents 
-                    Outbreak_Response.test_residents!(all_detections, 
-                                                      config.p_test_per_day_residents_outbreak, 
-                                                      agents, 
-                                                      infected_agents, 
-                                                      day_of_week, 
-                                                      t, 
-                                                      resident_ids_to_isolate, 
-                                                      config)
-                else
-                    # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    Outbreak_Response.test_workers!(all_detections, 
-                                                    config.p_test_per_day_workers_baseline, 
-                                                    agents, 
-                                                    infected_agents, 
-                                                    day_of_week, 
-                                                    t, 
-                                                    worker_ids_to_remove, 
-                                                    config)
-                    # test residents 
-                    Outbreak_Response.test_residents!(all_detections, 
-                                                      config.p_test_per_day_residents_baseline, 
-                                                      agents, 
-                                                      infected_agents, 
-                                                      day_of_week, 
-                                                      t, 
-                                                      resident_ids_to_isolate, 
-                                                      config)
-                end
-
-                # remove workers from rooms and from N_lists if they tested positive 
-                if config.worker_case_isolation
-                    Outbreak_Response.remove_workers!(agents, 
-                                                      worker_ids_to_remove, 
-                                                      N_lists_new, 
-                                                      removed_workers, 
-                                                      t, 
-                                                      rooms, 
-                                                      room_ids_to_update)
-                end
-
-                # isolate residents who tested positive: 
-                if config.resident_case_isolation
-                    Outbreak_Response.isolate_residents!(agents, 
-                                                         resident_ids_to_isolate, 
-                                                         isolated_residents, 
-                                                         t)
-                end
-
-
-                # update network based on current room assignments 
-                # NOTE: this needs to be optimised to update only those agents who are affected
-                # by fuloughs 
-                
-                # NOTE: all days must be updated because the set room_ids_to_update refreshes each new day 
-                # but accounts for effects on the entire roster. 
-
-            
-                if !isempty(room_ids_to_update)
-                    #println("attempting to re-wire")
-                    for (d, N_list_d) in N_lists_new.day_to_N_list
-                        # note, out-edges from removed workers have been removed in remove_workers!()
-                        # the below removes the in-edges to removed workers 
-                        # (and will perform any other updates based on room assignment changes in surge roster (for future version))
-                        # this also updates out-edges for any workers who are returning from furlough. 
-                        Facility_Structure.update_N_lists_d_from_Rooms!(rooms, 
-                                                                        room_ids_to_update, 
-                                                                        N_list_d, 
-                                                                        d)
-                    end
-                end
-                # assign agent contacts from N lists constructed above from rooms 
-                # only doing this for the current day, as the future days will probably change again 
-                # before the contacts are needed. 
-                Agents_RACF.assign_todays_contacts!(agents, 
-                                                    N_lists_new, 
-                                                    day_of_week) 
-                #note - this will completely replace the existing contact list for today
-        
-                # adjust pairwise weights based on model-specific bias 
-                Agents_RACF.pairwise_weights_d!(agents, 
-                                                day_of_week,
-                                                config) 
-                # for the daily network update, this should be 
-                # incorporated into assign_todays_contacts!()
-
-                
-                # count detections from last 7 days, if > 0, we have an active outbreak, otherwise we don't_detected
-                #println("\n****\nt=$t: new cases last 7 days: $n_cases_last_7")
-
             end 
             
             # this now implements PPE when outbreak is active. 
             #modified intputs: all_transmissions, infected_agents, agents
 
-            bkg_contact_rate = bkg_contact_rate_per_resident_per_step
+            # for homogeneous case, absorb all contacts into background: 
+            # note not stratifying by needs levels because this is the homogeneous case and all are classified as 'regular needs'
+            bkg_contact_rate = bkg_contact_rate_per_resident_per_step + (contact_rate_per_step / n_residents)
             bkg_contact_rate_iso = bkg_contact_rate_per_resident_per_step * (1.0 - config.resident_isolation_efficacy)
 
             if config.active_outbreak && config.outbreak_control && config.resident_lockdown
                 bkg_contact_rate *= (1.0 - config.resident_lockdown_efficacy)
             end
 
-            Transmission_Dynamics.compute_transmission_R0!(all_transmissions, 
-                                                        infected_agents, 
-                                                        agents,
-                                                        day_of_week, 
-                                                        w_tot_d, 
-                                                        contact_rate_per_step, 
-                                                        bkg_contact_rate, 
-                                                        bkg_contact_rate_iso, 
-                                                        t, 
-                                                        config,
-                                                        index_case_id)
+            Transmission_Dynamics.compute_transmission_R0_homo!(all_transmissions, 
+                                                                infected_agents, 
+                                                                agents,
+                                                                bkg_contact_rate, 
+                                                                bkg_contact_rate_iso, 
+                                                                t, 
+                                                                config,
+                                                                index_case_id)
 
         end
 

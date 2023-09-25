@@ -251,7 +251,8 @@ end
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of worker agents [id -> agent object]
 function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T}, 
-                                          workers_DF::DataFrame)#, N_lists)  
+                                          workers_DF::DataFrame,
+                                          config::Setup_RACF.Config_T)#, N_lists)  
     
     n_workers = size(workers_DF, 1)
     
@@ -283,7 +284,9 @@ function populate_workers_from_DataFrame!(workers_out::Dict{Int64, Agent_T},
     
         #add_neighbours_from_N_list!(workers_out[id_i], N_lists, id_i)
     
-        initialise_immunity_status!(workers_out[id_i].immunity, workers_DF[workers_DF.id .== id_i, :])
+        initialise_immunity_status!(workers_out[id_i].immunity, 
+                                    workers_DF[workers_DF.id .== id_i, :], 
+                                    config)
     
     end
 
@@ -292,7 +295,8 @@ end
 # 2022 09 14, removed initialisation of N_lists from text file.
 #populates a dictionary of resident agents [id -> agent object]
 function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T}, 
-                                            residents_DF::DataFrame)#, N_lists)
+                                            residents_DF::DataFrame,
+                                            config::Setup_RACF.Config_T)#, N_lists)
     
     n_residents = size(residents_DF, 1)
     
@@ -316,7 +320,9 @@ function populate_residents_from_DataFrame!(residents_out::Dict{Int64, Agent_T},
         #add_neighbours_from_N_list!(residents_out[id_i], N_lists, id_i)
 
         #add immunity status: 
-        initialise_immunity_status!(residents_out[id_i].immunity, residents_DF[residents_DF.id .== id_i, :])
+        initialise_immunity_status!(residents_out[id_i].immunity, 
+                                    residents_DF[residents_DF.id .== id_i, :], 
+                                    config)
 
     end
 end
