@@ -1,0 +1,2 @@
+service_id,month_end,jurisdiction,postcode,remoteness_mmm,n_residents,n_staff,occupancy,prop_residents_high_adl_needs,prop_residents_high_beh_needs,prop_residents_high_chc_needs,prop_res_shared_rooms,prop_fac_shared_rooms
+20000001,01/01/1,XXXX,0,0,1000,0,0,0,0,0,0,0
