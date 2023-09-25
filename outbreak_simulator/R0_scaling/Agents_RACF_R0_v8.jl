@@ -667,6 +667,16 @@ function select_random_agents_by_weight(A::Agents_T, config::Setup_RACF.Config_T
 
 end
 
+function select_random_agents_uniform(A::Agents_T, config::Setup_RACF.Config_T, n::Int64)::Vector{Int64}
+
+    id_vec, weight_vec = compute_weight_fraction(A)
+
+    id_rand = sample(config.rng_infections, id_vec, n)
+
+    return id_rand
+
+end
+
 
 function test_weighted_sample(A::Agents_T, 
                               n_tot, 
