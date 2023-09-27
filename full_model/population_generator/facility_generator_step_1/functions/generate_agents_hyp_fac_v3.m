@@ -30,7 +30,8 @@ roster = [[1, 2, 3, 4, 5, 6, 7];...
 
 % best-guess. 
 % how many staff service each room.
-staff_per_room = facility_info.staff_per_room;
+staff_per_room = facility_info.min_staff_per_room;
+rooms_per_staff = facility_info.min_rooms_per_staff;
 % TODO: check if this is per-day or per roster period 
 % (I think it's per day). 
 
@@ -104,6 +105,10 @@ while res_id < n
     while rooms(rm_id).capacity > 0
         
         res_id = res_id + 1;
+        
+        if res_id > n
+            break
+        end
        
         residents(res_id).room_id = rooms(rm_id).id;
         rooms(rm_id).residents = [rooms(rm_id).residents, residents(res_id).id];
@@ -133,7 +138,8 @@ end
 [staff, rooms] = ...
                     assign_staff_to_rooms_v3_random(staff,...
                                                     rooms,...
-                                                    staff_per_room);
+                                                    staff_per_room,...
+                                                    rooms_per_staff);
                                          
                                          
 

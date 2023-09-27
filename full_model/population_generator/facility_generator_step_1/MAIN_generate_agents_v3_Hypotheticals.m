@@ -17,9 +17,9 @@ facility_data_fname = ['input\facility_characteristics\',...
 facility_info = readtable(facility_data_fname);
 
 %%output locations:
-date_label = '2023_09_26';
+date_label = '2023_09_27';
 
-output_dir = [pwd(), '\agents_Hypothetical_facilities_v3'];
+output_dir = [pwd(), '\output\agents_Hypothetical_facilities_v3'];
 
 
 %% specify input sets:
@@ -52,28 +52,12 @@ for i = 1:n_facilities
     % add outbreak id and key to agent and room structures before writing (for final linking of data):
     n_res = size(i_residents_fac, 2);
     n_wrk_g = size(i_staff_gen_fac, 2);
-    n_wrk_med = size(i_staff_med_fac, 2);
     n_rooms = size(i_rooms_fac, 2);
     
-    for res_i = 1:n_res
-        i_residents_fac(res_i).outbreak_key = 'xxxx';
-    end
-    
-    for w_g = 1:n_wrk_g
-        i_staff_gen_fac(w_g).outbreak_key = 'xxxx';
-    end
-    
-    for w_m = 1:n_wrk_med
-        i_staff_med_fac(w_m).outbreak_key = 'xxxx';
-    end
-    
-    for rm_i = 1:n_rooms
-        i_rooms_fac(rm_i).outbreak_key = 'xxxx';
-    end
     
     
     %% make a directory for the set of agents from the hypothetical facility:
-    fac_i_agent_list_dirname = [num2str(fac_i.service_id), '_hyp'];
+    fac_i_agent_list_dirname = [num2str(fac_i.id), '_hyp'];
     out_dirname = [output_dir, '\' date_label '\' fac_i_agent_list_dirname];
     if ~isfolder(out_dirname)
         mkdir(out_dirname)
@@ -82,8 +66,7 @@ for i = 1:n_facilities
     %% write resident, worker, and room datasets for each outbreak:
    
     res_fac_label = [out_dirname, '\res_facility'];
-    wrk_g_fac_label = [out_dirname, '\staff_g_facility'];
-    wrk_m_fac_label = [out_dirname, '\staff_m_facility'];
+    wrk_fac_label = [out_dirname, '\staff_facility'];
     rm_fac_label = [out_dirname, '\rooms'];
     
     
@@ -91,10 +74,7 @@ for i = 1:n_facilities
     %read-in scripts (which are included in the network generator).
     
     %write workers to csv (general)
-    write_workers_to_csv(i_staff_gen_fac, wrk_g_fac_label)
-    
-    %write workers to csv (medical)
-    write_workers_to_csv(i_staff_med_fac, wrk_m_fac_label)
+    write_workers_to_csv(i_staff_gen_fac, wrk_fac_label)
     
     %write residents to csv
     write_residents_to_csv(i_residents_fac, res_fac_label)
@@ -103,4 +83,14 @@ for i = 1:n_facilities
     write_rooms_to_csv(i_rooms_fac, rm_fac_label)
     
 end
+
+% format for julia read-in: 
+
+% specify input and output locations
+input_dirname = [output_dir, '\', date_label];
+
+output_dirname = [output_dir, '\agents_model_ready_v3\' date_label];
+
+format_agents_for_Julia_readin(input_dirname, output_dirname, facility_data_fname)
+
 
