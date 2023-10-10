@@ -1,4 +1,6 @@
-
+# modifying this so that R0 is not set as an independent parameter
+# using same implementation as R0 script that sets the 
+# transmission scalar directly. 
 
 module Setup_RACF
 
@@ -28,7 +30,7 @@ end
 mutable struct run_configuration <: Config_T
     config_str::String
 
-    R0::Float64
+    transmission_scaler::Float64
 
     delay_infection_control::Int64
 
@@ -114,13 +116,13 @@ function setup_run_default!(config::Config_T, data_dirname::String)
     # setting up some utilities: 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
 
-        #reproductive ratio: 
-        R0 = 6.0 # default 
-        description = "Reproductive ratio, calibrated to beta and timestep"
-        config_line = (@Name(R0) * ", " * description * ", " * "$R0" )
-        config_str = config_str*config_line*"\n"
-        # assign to struct property. 
-        config.R0 = R0
+        #transmission scaler (translates to <beta_max> in the current implementation of the transmission model)
+        transmission_scaler = 0.1#default
+            description = "Adjusts mean transmission rate up or down"
+            config_line = (@Name(transmission_scaler) * ", " * description * ", " * "$transmission_scaler")
+            config_str = config_str*config_line*"\n"
+            #assign to struct property. 
+            config.transmission_scaler = transmission_scaler
 
         # add control parameter values to config:
         # response delay  
@@ -291,7 +293,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.log_mu_res = log_mu_res
 
-        log_sig_res = 1.5 #default 
+        log_sig_res = 1.07 #default 
             description = "standard deviation of natural log neuts (residents)"
             config_line = (@Name(log_sig_res) * ", " * description * ", " * "$log_sig_res" )
             config_str = config_str*config_line*"\n"
@@ -303,7 +305,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.log_mu_wG = log_mu_wG
 
-        log_sig_wG = 1.5
+        log_sig_wG = 1.07
             description = "standard deviation of natural log neuts (general staff)"
             config_line = (@Name(log_sig_wG) * ", " * description * ", " * "$log_sig_wG" )
             config_str = config_str*config_line*"\n"
@@ -315,7 +317,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.log_mu_wM = log_mu_wM
 
-        log_sig_wM = 1.5
+        log_sig_wM = 1.07
             description = "standard deviation of natural log neuts (medical staff)"
             config_line = (@Name(log_sig_wM) * ", " * description * ", " * "$log_sig_wM" )
             config_str = config_str*config_line*"\n"
@@ -507,10 +509,10 @@ function update_config!(config::Config_T)
 
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
 
-        #reproductive ratio: 
-        R0 = config.R0
-            description = "Reproductive ratio, calibrated to beta and timestep"
-            config_line = (@Name(R0) * ", " * description * ", " * "$R0" )
+        #transmission scaler (translates to <beta_max> in the current implementation of the transmission model)
+        transmission_scaler = config.transmission_scaler
+            description = "Adjusts mean transmission rate up or down"
+            config_line = (@Name(transmission_scaler) * ", " * description * ", " * "$transmission_scaler")
             config_str = config_str*config_line*"\n"
 
         # add control parameter values to config:
@@ -862,23 +864,23 @@ function set_immunity_dist!(config::Config_T)
     # NOTE: larger sigma values reflect heterogeneity in timing and vaccine type in real facilities. 
     # NOTE: for reference, mu of approx. -1.5 corresponds to (for example) Pfizer dose 3 after 12 weeks of waning. 
     if !config.uniform_immunity
-        config.log_mu_res = -1.47
-        config.log_sig_res = 1.34
+        config.log_mu_res = 0.0
+        config.log_sig_res = 1.07
 
-        config.log_mu_wG = -1.79
-        config.log_sig_wG = 1.43
+        config.log_mu_wG = 0.0
+        config.log_sig_wG = 1.07
 
-        config.log_mu_wM = -1.64
-        config.log_sig_wM = 1.51
+        config.log_mu_wM = 0.0
+        config.log_sig_wM = 1.07
     else
-        config.log_mu_res = -1.47
-        config.log_sig_res = 1.34
+        config.log_mu_res = 0.0
+        config.log_sig_res = 1.07
 
-        config.log_mu_wG = -1.47
-        config.log_sig_wG = 1.34
+        config.log_mu_wG = 0.0
+        config.log_sig_wG = 1.07
 
-        config.log_mu_wM = -1.47
-        config.log_sig_wM = 1.34
+        config.log_mu_wM = 0.0
+        config.log_sig_wM = 1.07
 
     end
 

@@ -103,58 +103,7 @@ end
 # functions for property assignment from dataframe:
 
 # adds immunity status
-function initialise_immunity_status!(im::Diseases_RACF.Immunity_Profile_T, 
-                                     agent_DF::DataFrame,
-                                     config::Setup_RACF.Config_T)
 
-    #input is immunity status of agent i, and 
-    # text dataframe of immunity status values from population
-    # generator output (only agent i's line of the DF)
-
-    # TODO: convert numeric week to datetime and add vaccine and 
-    # infection histories. (this will require a map from numeric week to datetime.)
-    # vaccination history Dict{DateTime, String}
-    # infection history Dict{DateTime, Disease_T}
-
-    #NAT_peak::Float64
-    im.NAT_peak = 0.0
-    #dt_peak::Float64
-    im.dt_peak = 0.0
-    #NAT_decay_rate::Float64
-    im.NAT_decay_rate = 0.0
-    #NAT_t::Float64
-    im.NAT_t = 0.0
-    # protection values 
-
-    if config.immunity
-        #for now, these are all for Omicron (SARS-CoV-2)
-        #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Default"] = agent_DF.eff_acqui[1]
-        
-        #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Default"] = agent_DF.eff_symp[1]
-        
-        #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Default"]  = agent_DF.eff_trans[1]
-        
-        #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Default"] = agent_DF.eff_death[1]
-    else
-        #for now, these are all for Omicron (SARS-CoV-2)
-        #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Default"] = 0.0
-        #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Default"] = 0.0
-        #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Default"]  = 0.0
-        #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Default"] = 0.0
-    end
-
-
-    #Check that data types are parsed correctly. 
-
-end
 
 #adds immunity status from distribution, rather than from file: 
 function initialise_immunity_status_from_pdist!(im::Diseases_RACF.Immunity_Profile_T, 
@@ -167,39 +116,35 @@ function initialise_immunity_status_from_pdist!(im::Diseases_RACF.Immunity_Profi
 
     # NOTE: still treating neuts as static for now, 
 
-    #NAT_peak::Float64
+
     im.NAT_peak = 0.0
-    #dt_peak::Float64
+
     im.dt_peak = 0.0
-    #NAT_decay_rate::Float64
+
     im.NAT_decay_rate = 0.0
-    #NAT_t::Float64
+
     im.NAT_t = 0.0
-    # protection values 
+ 
 
     if config.immunity
         # sample from population-specific neut distribution 
         ln_neuts = rand(config.rng_immunity, pdist)
-        neuts = exp(ln_neuts)
 
-        #for now, these are all for Omicron (SARS-CoV-2)
-        #protection_Infection::Dict{String, Float64}
-        im.protection_Infection["Default"] = Diseases_RACF.Efficacy_infection_Omicron(neuts)
-        #protection_Symptoms::Dict{String, Float64}
-        im.protection_Symptoms["Default"] = Diseases_RACF.Efficacy_Symptoms_Omicron(neuts)
-        #protection_Transmission::Dict{String, Float64}
-        im.protection_Transmission["Default"]  = Diseases_RACF.Efficacy_OT_Omicron(neuts)
-        #protection_Death::Dict{String, Float64} 
-        im.protection_Death["Default"] = Diseases_RACF.Efficacy_Death_Omicron(neuts)
+        im.protection_Infection["Default"] = Diseases_RACF.Efficacy_infection_Default(ln_neuts)
+
+        im.protection_Symptoms["Default"] = Diseases_RACF.Efficacy_Symptoms_Default(ln_neuts)
+
+        im.protection_Transmission["Default"]  = Diseases_RACF.Efficacy_OT_Default(ln_neuts)
+
+        im.protection_Death["Default"] = Diseases_RACF.Efficacy_Death_Default(ln_neuts)
     else
-        #for now, these are all for Omicron (SARS-CoV-2)
-        #protection_Infection::Dict{String, Float64}
+
         im.protection_Infection["Default"] = 0.0
-        #protection_Symptoms::Dict{String, Float64}
+
         im.protection_Symptoms["Default"] = 0.0
-        #protection_Transmission::Dict{String, Float64}
+
         im.protection_Transmission["Default"]  = 0.0
-        #protection_Death::Dict{String, Float64} 
+
         im.protection_Death["Default"] = 0.0
     end
 

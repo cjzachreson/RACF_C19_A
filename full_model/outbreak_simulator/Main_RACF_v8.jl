@@ -16,12 +16,6 @@
 # 2022 09 25 : including capacity to draw immunity states from distribution
 # rather than applying them deterministically from the input file. 
 
-# TODO: verify calibration on fully-connected test population. 
-# NOTE: dynamics look plausible, but the pairwise implementation 
-# might require some tweaking w.r.t. calibration of R0 
-# specifically, R0 can now depend on the contact rate 
-# because transmission is not frequency dependent. 
-
 # 2022 09 23 : adding control parameter sweep: 
 # delay between outbreak declaration and implementation of outbreak response
 # compliance with scheduled testing of workforce 
@@ -130,57 +124,27 @@ function run!(config::Setup_RACF.Config_T,
 
 
         ## ***** ##
-        
-        # 2022 09 14 no longer using this - generating network from room assignments locally 
-        #parse network input as neighbour lists:
-        #N_lists = N_list()
-        #populate_neighbour_lists_from_DataFrame!(N_lists.id_to_contacts, N_lists_str)
-        ##
         #initialise Agents 
         agents = Agents_RACF.Agents()
 
-        if config.immunity_from_dist
 
-            ln_neut_dist_res = Normal(config.log_mu_res, config.log_sig_res)
-            ln_neut_dist_wG = Normal(config.log_mu_wG, config.log_sig_wG)
-            ln_neut_dist_WM = Normal(config.log_mu_wM, config.log_sig_wM)
+        ln_neut_dist_res = Normal(config.log_mu_res, config.log_sig_res)
+        ln_neut_dist_wG = Normal(config.log_mu_wG, config.log_sig_wG)
+        ln_neut_dist_WM = Normal(config.log_mu_wM, config.log_sig_wM)
 
-            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_G, pop.workers_G_str, ln_neut_dist_wG, config)#, N_lists.id_to_contacts)
-            N_workers_G = length(agents.workers_G) #note size() not defined for dict
-            #println("created $N_workers_G general staff members")
+        Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_G, pop.workers_G_str, ln_neut_dist_wG, config)#, N_lists.id_to_contacts)
+        N_workers_G = length(agents.workers_G) #note size() not defined for dict
+        #println("created $N_workers_G general staff members")
 
-            #initialise medical staff
-            Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_M, pop.workers_M_str, ln_neut_dist_WM, config)#, N_lists.id_to_contacts)
-            N_workers_M = length(agents.workers_M) #note size() not defined for dict
-            #println("created $N_workers_M medical staff members")
+        #initialise medical staff
+        Agents_RACF.populate_workers_from_DataFrame_imDist!(agents.workers_M, pop.workers_M_str, ln_neut_dist_WM, config)#, N_lists.id_to_contacts)
+        N_workers_M = length(agents.workers_M) #note size() not defined for dict
+        #println("created $N_workers_M medical staff members")
 
-            #initialise residents
-            Agents_RACF.populate_residents_from_DataFrame_imDist!(agents.residents, pop.residents_str, ln_neut_dist_res, config)#, N_lists.id_to_contacts)
-            N_residents = length(agents.residents) #note size() not defined for dict
-            #println("created $N_residents residents")
-
-
-
-        else #not used - this is applicable if neut values are included in population data input. 
-            # iterate through parsed input DataFrames and initialise workers/residents:
-            #initialise general staff
-            #NOTE: 2022 09 14 removed initialisation of network from file (done locally from room assignments now)
-            #populate_workers_from_DataFrame!(agents.workers_G, workers_G_str)#, N_lists.id_to_contacts)
-            #N_workers_G = length(agents.workers_G) #note size() not defined for dict
-            #println("created $N_workers_G general staff members")
-
-            #initialise medical staff
-            #populate_workers_from_DataFrame!(agents.workers_M, workers_M_str)#, N_lists.id_to_contacts)
-            #N_workers_M = length(agents.workers_M) #note size() not defined for dict
-            #println("created $N_workers_M medical staff members")
-
-            #initialise residents
-            #populate_residents_from_DataFrame!(agents.residents, residents_str)#, N_lists.id_to_contacts)
-            #N_residents = length(agents.residents) #note size() not defined for dict
-            #println("created $N_residents residents")
-
-        end
-
+        #initialise residents
+        Agents_RACF.populate_residents_from_DataFrame_imDist!(agents.residents, pop.residents_str, ln_neut_dist_res, config)#, N_lists.id_to_contacts)
+        N_residents = length(agents.residents) #note size() not defined for dict
+        #println("created $N_residents residents")
 
 
         agents.All = merge(agents.residents, 
@@ -800,6 +764,8 @@ function main()
 
 
                         output_dir_L2 = "$delay_label\\$test_compliance_label\\$PPE_efficacy_label"
+                        
+                        
                         output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
                         if !ispath(output_dir_fac)
                             mkpath(output_dir_fac)

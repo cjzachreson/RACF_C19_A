@@ -35,7 +35,7 @@ import .Setup_RACF
 include("./Networks_RACF_v8.jl")
 import .Networks_RACF
 
-include("./Diseases_RACF_v8.jl")
+include("./Diseases_RACF_R0_v8.jl")
 import .Diseases_RACF
 
 include("./Agents_RACF_R0_v8.jl")
@@ -425,15 +425,8 @@ function run_R0!(config::Setup_RACF.Config_T,
         push!(output_linelist.I_tot_staff, I_tot_staff) 
         push!(output_linelist.I_tot_res, I_tot_res) 
 
-        #println("total infections for run: $total_infections")
-
         push!(tot_transmissions, size(all_transmissions, 1))
         
-        # some testing for R0 implementation:
-        # if (I_tot_staff + I_tot_res) > 10
-        #     print(all_transmissions)
-        # end
-    
     end
 
     println("avg. secondary cases: $(mean(tot_transmissions))")

@@ -16,11 +16,6 @@
 # 2022 09 25 : including capacity to draw immunity states from distribution
 # rather than applying them deterministically from the input file. 
 
-# TODO: verify calibration on fully-connected test population. 
-# NOTE: dynamics look plausible, but the pairwise implementation 
-# might require some tweaking w.r.t. calibration of R0 
-# specifically, R0 can now depend on the contact rate 
-# because transmission is not frequency dependent. 
 
 # 2022 09 23 : adding control parameter sweep: 
 # delay between outbreak declaration and implementation of outbreak response
@@ -35,7 +30,7 @@ import .Setup_RACF
 include("./Networks_RACF_v8.jl")
 import .Networks_RACF
 
-include("./Diseases_RACF_v8.jl")
+include("./Diseases_RACF_R0_v8.jl")
 import .Diseases_RACF
 
 include("./Agents_RACF_R0_v8.jl")
@@ -116,7 +111,8 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
         Agents_RACF.reset_agent_states!(agents.residents, ln_neut_dist_res, config)
         Agents_RACF.reset_agent_states!(agents.workers_M, ln_neut_dist_wM, config)
         Agents_RACF.reset_agent_states!(agents.workers_G, ln_neut_dist_wG, config)
-        println("initialisd agent infection status for run $n_instances")
+        
+        #println("initialisd agent infection status for run $n_instances")
         # check to make sure agenets.All is reset appropriately. 
 
 
@@ -137,8 +133,8 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
 
         # add agent numbers to output list 
         push!(output_linelist.n_residents, N_residents)
-        push!(output_linelist.n_staff, (N_workers_G + N_workers_M))
-        push!(output_linelist.total_FTE, Agents_RACF.compute_total_FTE(agents))
+        #push!(output_linelist.n_staff, (N_workers_G + N_workers_M))
+        #push!(output_linelist.total_FTE, Agents_RACF.compute_total_FTE(agents))
 
 
         ##*****##
@@ -191,7 +187,7 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
         # homogeneous case: note - can move the factor to the outer run loop and set the config parameter instead. 
         # leaving as-is for now... 
         contact_rate_per_day = 
-            convert(Float64, n_residents_reg_needs) * (config.contact_rate_per_resident_per_day / 3.0)
+            convert(Float64, n_residents) * (config.contact_rate_per_resident_per_day / 3.0)
         
         contact_rate_per_step = contact_rate_per_day * config.dt 
 
@@ -292,14 +288,7 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
 
         push!(output_linelist.I_tot_res, I_tot_res) 
 
-        #println("total infections for run: $total_infections")
-
         push!(tot_transmissions, size(all_transmissions, 1))
-        
-        # some testing for R0 implementation:
-        # if (I_tot_staff + I_tot_res) > 10
-        #     print(all_transmissions)
-        # end
     
     end
 
@@ -328,7 +317,7 @@ function main()
     # DEFINE RANGE OF CONTROL PARAMETERS: 
     
     #vaccine-acquired immunity: 
-    immunity_states = Bool[false]
+    immunity_states = Bool[true, false]
     transmission_scalers = collect(0.025:0.025:0.4)
     
     n_instances_tot = 1000 # how many instances of the primary case simulation
@@ -359,11 +348,13 @@ function main()
             immunity_label = "immunity_off"
         end
 
-        for i in 1:1#n_populations #facility indices
+        for i in 1:n_populations #facility indices
 
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_homo"
-            output_dir_L1 = pwd() * "\\output_v8_R0_test\\$immunity_label\\$fac_label\\$n_label"
+
+            output_dir_L1 = pwd() * "\\output_v8_R0_test_immunity\\$immunity_label\\$fac_label\\$n_label"
+
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
             end

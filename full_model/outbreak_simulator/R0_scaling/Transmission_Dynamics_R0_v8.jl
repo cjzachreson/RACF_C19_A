@@ -98,13 +98,6 @@ function transmit_infection!(source::Agents_RACF.Agent_T,
                 foi_source *= immunity_fac_source
                 foi_source *= immunity_fac_target 
 
-                # TODO: include other factors associated with transmission. 
-                # NOTE: 2022 10 20 - removing dt from p_trans
-                # this is already accounted for by the contact rate for each timestep
-                # see disease parameters - calibration with dt = 0.1 means I'll have to
-                # multiply b_max by 0.1 to scale infectiousness accordingly. 
-                # old code: p_trans = 1.0 - exp((-1.0 * foi_source * dt))
-                # new code: 
                 p_trans = 1.0 - exp((-1.0 * foi_source))
 
                 #println("agent $(source.id) trying to infect agent $(target.id) with $pathogen_name with probability $p_trans, b_max = $(source.infections[pathogen_name].beta_max)")
@@ -288,7 +281,6 @@ end
 
 
 # update agent infections 
-# NOTE: this function uses the global parameter dt. 
 function update_infections!(agents::Agents_RACF.Agents_T, 
                             infected_agents::Dict{Int64, Float64}, 
                             config::Setup_RACF.Config_T)
@@ -388,8 +380,6 @@ function compute_transmission!(all_transmissions::DataFrame,
     prop_infected = w_infected / w_tot_d[day_of_week]
 
     # n infectious edges to sample: 
-
-    # Poisson(net contact rate * prop_infected * dt) 
     infectious_contact_rate = contact_rate * prop_infected
     dist = Poisson(infectious_contact_rate)
     n_to_sample = rand(config.rng_contacts, dist)
@@ -508,8 +498,6 @@ function compute_transmission_R0!(all_transmissions::DataFrame,
         prop_infected = w_infected / w_tot_d[day_of_week]
 
         # n infectious edges to sample: 
-
-        # Poisson(net contact rate * prop_infected * dt) 
         infectious_contact_rate = contact_rate * prop_infected
         dist = Poisson(infectious_contact_rate)
         n_to_sample = rand(config.rng_contacts, dist)
