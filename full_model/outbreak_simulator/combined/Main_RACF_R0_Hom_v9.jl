@@ -21,28 +21,28 @@
 # compliance with scheduled testing of workforce 
 
 
-include("./header_RACF.jl")
+# include("./header_RACF.jl")
 
-include("./Setup_RACF_v9.jl")
-import .Setup_RACF
+# include("./Setup_RACF_v9.jl")
+# import .Setup_RACF
 
-include("./Networks_RACF_v9.jl")
-import .Networks_RACF
+# include("./Networks_RACF_v9.jl")
+# import .Networks_RACF
 
-include("./Diseases_RACF_v9.jl")
-import .Diseases_RACF
+# include("./Diseases_RACF_v9.jl")
+# import .Diseases_RACF
 
-include("./Agents_RACF_v9.jl")
-import .Agents_RACF
+# include("./Agents_RACF_v9.jl")
+# import .Agents_RACF
 
-include("./Facility_Structure_v9.jl")
-import .Facility_Structure
+# include("./Facility_Structure_v9.jl")
+# import .Facility_Structure
 
-include("./Outbreak_Response_RACF_v9.jl")
-import .Outbreak_Response
+# include("./Outbreak_Response_RACF_v9.jl")
+# import .Outbreak_Response
 
-include("./Transmission_Dynamics_v9.jl")
-import .Transmission_Dynamics
+# include("./Transmission_Dynamics_v9.jl")
+# import .Transmission_Dynamics
 
 
 global NETWORK_TEST = false 
@@ -180,17 +180,9 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
         push!(output_linelist.index_case_beta_max, agents.All[index_case_id].infections["Default"].beta_max)
 
 
-        # define some parameters defining contact rates 
-        #contact_rate_per_resident_per_day = 10.0 #NOTE: moved to setup_RACF.jl
+        # define some parameters defining contact rates
 
         # homogeneous implementation only has residents with regular needs 
-        n_residents = Agents_RACF.count_reg_needs_residents(agents)
-
-        contact_rate_per_day = 
-            convert(Float64, n_residents) * (config.contact_rate_per_resident_per_day)
-        
-        contact_rate_per_step = contact_rate_per_day * config.dt 
-
 
         # background contacts between residents (i.e., in shared meal spaces)
         # these are not included in the structured facility model
@@ -246,14 +238,10 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
             #modified intputs: all_transmissions, infected_agents, agents
 
             # for homogeneous case, absorb all contacts into background: 
-            # note not stratifying by needs levels because this is the homogeneous case and all are classified as 'regular needs'
-            bkg_contact_rate = bkg_contact_rate_per_resident_per_step + (contact_rate_per_step / n_residents)
-
-
             Transmission_Dynamics.compute_transmission_R0_homo!(all_transmissions, 
                                                                 infected_agents, 
                                                                 agents,
-                                                                bkg_contact_rate,  
+                                                                bkg_contact_rate_per_resident_per_step,  
                                                                 t, 
                                                                 config,
                                                                 index_case_id)
@@ -353,7 +341,7 @@ function main_R0_homogeneous()
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_homo"
 
-            output_dir_L1 = pwd() * "\\output_v9_R0_hom_test_1\\$immunity_label\\$fac_label\\$n_label"
+            output_dir_L1 = pwd() * "\\output_v9_R0_hom_test_2\\$immunity_label\\$fac_label\\$n_label"
 
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
@@ -403,6 +391,12 @@ function main_R0_homogeneous()
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_if_symptomatic = 0.0
 
+
+                #set contact rates: 
+                config_run.contact_rate_per_resident_per_day = 0.0 # no structured contacts
+                config_run.bkg_contact_rate_per_resident_per_day = 6.0
+                config_run.contact_rate_per_resident_per_day_high_needs = 9.0 #no high needs residents anyway
+                
                 #update the config parameters (ensuring any interdependent parameters are changed): 
 
                 Setup_RACF.update_config!(config_run)

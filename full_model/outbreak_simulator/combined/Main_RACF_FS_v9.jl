@@ -21,28 +21,28 @@
 # compliance with scheduled testing of workforce 
 
 
-include("./header_RACF.jl")
+# include("./header_RACF.jl")
 
-include("./Setup_RACF_v9.jl")
-import .Setup_RACF
+# include("./Setup_RACF_v9.jl")
+# import .Setup_RACF
 
-include("./Networks_RACF_v9.jl")
-import .Networks_RACF
+# include("./Networks_RACF_v9.jl")
+# import .Networks_RACF
 
-include("./Diseases_RACF_v9.jl")
-import .Diseases_RACF
+# include("./Diseases_RACF_v9.jl")
+# import .Diseases_RACF
 
-include("./Agents_RACF_v9.jl")
-import .Agents_RACF
+# include("./Agents_RACF_v9.jl")
+# import .Agents_RACF
 
-include("./Facility_Structure_v9.jl")
-import .Facility_Structure
+# include("./Facility_Structure_v9.jl")
+# import .Facility_Structure
 
-include("./Outbreak_Response_RACF_v9.jl")
-import .Outbreak_Response
+# include("./Outbreak_Response_RACF_v9.jl")
+# import .Outbreak_Response
 
-include("./Transmission_Dynamics_v9.jl")
-import .Transmission_Dynamics
+# include("./Transmission_Dynamics_v9.jl")
+# import .Transmission_Dynamics
 
 
 global NETWORK_TEST = false 
@@ -471,12 +471,12 @@ function main_Final_Size()
             immunity_label = "immunity_off"
         end
 
-        for i in 1:1#n_populations #facility indices
+        for i in 3:3#n_populations #facility indices
 
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
 
-            output_dir_L1 = pwd() * "\\output_v9_FS_test_1\\$immunity_label\\$fac_label\\$n_label"
+            output_dir_L1 = pwd() * "\\output_v9_FS_test_2\\$immunity_label\\$fac_label\\$n_label"
 
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
@@ -524,8 +524,13 @@ function main_Final_Size()
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_if_symptomatic = 0.0
 
-                #update the config parameters (ensuring any interdependent parameters are changed): 
 
+                #set contact rates: 
+                config_run.contact_rate_per_resident_per_day = 3.0
+                config_run.bkg_contact_rate_per_resident_per_day = 3.0
+                config_run.contact_rate_per_resident_per_day_high_needs = 9.0 #no high needs residents anyway
+                
+                #update the config parameters (ensuring any interdependent parameters are changed): 
                 Setup_RACF.update_config!(config_run)
 
                 #write record of run configuration 
