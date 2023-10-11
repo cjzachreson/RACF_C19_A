@@ -46,6 +46,7 @@ mutable struct run_configuration <: Config_T
     dt::Float64
 
     contact_rate_per_resident_per_day::Float64
+    contact_rate_per_resident_per_day_high_needs::Float64
     bkg_contact_rate_per_resident_per_day::Float64
 
     w_worker_worker::Float64
