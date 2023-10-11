@@ -2217,7 +2217,7 @@ function main_Final_Size()
                 facility = Facility_Structure.facility()
                 facility.id = fac_list.service_id[fac_i]
 
-                println("*****running R0 simulator for <beta_max> = $tscale_j*****")
+                println("*****running Final Size simulator for <beta_max> = $tscale_j*****")
                 
                 FS_est = run_Final_Size!(config_run, pop_run, facility, n_instances_tot, output_dir_fac)
                 println("Final Size estimate = $FS_est")
