@@ -54,7 +54,6 @@ import .Transmission_Dynamics
 global NETWORK_TEST = false 
 
 # define the main function 
-#TODO: this should be the run function, not the main function
 function run_R0!(config::Setup_RACF.Config_T, 
               pop::Setup_RACF.Pop_Input_T, 
               facility::Facility_Structure.Facility_T,
@@ -444,7 +443,7 @@ function run_R0!(config::Setup_RACF.Config_T,
 
 end
 
-function main()
+function main_R0()
 
     # loop through exemplars and run the simulations: 
 

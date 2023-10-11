@@ -1,5 +1,5 @@
 parameter variable name, human-readable description, value 
-R0, Reproductive ratio, calibrated to beta and timestep, 6.0
+transmission_scaler, Adjusts mean transmission rate up or down, 0.1
 delay_infection_control, delay between outbreak declaration and implementation of infection control (days), 5
 seed_infections, random number seed for infection dynamics, 13
 seed_testing, random number seed for testing, 1
@@ -27,12 +27,12 @@ active_outbreak, boolean flag true outbreak has been detected and has not resolv
 PPE_available, boolean flag false PPE is not yet available, false
 
 ***immunity distribution***
-log_mu_res, mean of natural log neuts (residents), -1.47
-log_sig_res, standard deviation of natural log neuts (residents), 1.34
-log_mu_wG, mean of natural log neuts (general staff), -1.79
-log_sig_wG, standard deviation of natural log neuts (general staff), 1.43
-log_mu_wM, mean of natural log neuts (medical staff), -1.64
-log_sig_wM, standard deviation of natural log neuts (medical staff), 1.51
+log_mu_res, mean of natural log neuts (residents), 0.0
+log_sig_res, standard deviation of natural log neuts (residents), 1.07
+log_mu_wG, mean of natural log neuts (general staff), 0.0
+log_sig_wG, standard deviation of natural log neuts (general staff), 1.07
+log_mu_wM, mean of natural log neuts (medical staff), 0.0
+log_sig_wM, standard deviation of natural log neuts (medical staff), 1.07
 
 ***testing probabilities*** 
 p_test_per_day, prob. of testing an agent each day, only used if testing is not stratified by agent type, 0.2
@@ -65,4 +65,4 @@ resident_index_case, worker index case vs. resident index case (if both are true
 worker_index_case, worker index case vs. resident index case (if both are true it can be either), true
 
 ***population data location***
-C:\Users\czachreson\Desktop\compositions_in_progress\RACF_A_outbreak_response\code\RACF_C19_A_repo\outbreak_simulator\scope_refactor\input\hypotheticals\facID_10000002_hyp
+C:\Users\czachreson\Desktop\compositions_in_progress\RACF_A_outbreak_response\code\RACF_C19_A_repo\full_model\outbreak_simulator\input\hypotheticals\facID_10000002_hyp

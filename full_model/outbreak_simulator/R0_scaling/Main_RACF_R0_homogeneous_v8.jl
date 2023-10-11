@@ -307,7 +307,7 @@ function run_R0_homogeneous!(config::Setup_RACF.Config_T,
 
 end
 
-function main()
+function main_R0_homogeneous()
 
     # loop through exemplars and run the simulations: 
 

@@ -181,14 +181,23 @@ function setup_run_default!(config::Config_T, data_dirname::String)
     config_str = config_str*"\n"*"*** contact rates *** \n"
 
         # contact rate per resident per day 
-        contact_rate_per_resident_per_day = 8.0#10.0
-            description = "average number of contacts sampled per resident on each day (high needs, reg. needs is 1/3 of this)"
+
+        contact_rate_per_resident_per_day = 3.0 #for 'structured' contacts
+            description = "average number of contacts sampled per resident on each day (reg. needs)"
             config_line = (@Name(contact_rate_per_resident_per_day) * ", " * description * ", " * "$contact_rate_per_resident_per_day" )
             config_str = config_str*config_line*"\n"
             config.contact_rate_per_resident_per_day = contact_rate_per_resident_per_day
 
+        
+        contact_rate_per_resident_per_day_high_needs = 9.0
+            description = "average number of contacts sampled per resident on each day (high. needs)"
+            config_line = (@Name(contact_rate_per_resident_per_day_high_needs) * ", " * description * ", " * "$contact_rate_per_resident_per_day_high_needs" )
+            config_str = config_str*config_line*"\n"
+            config.contact_rate_per_resident_per_day_high_needs = contact_rate_per_resident_per_day_high_needs
+
+
         # rate of resient background contacts per day (i.e., in shared communal spaces)
-        bkg_contact_rate_per_resident_per_day = 5.0
+        bkg_contact_rate_per_resident_per_day = 3.0 #for 'unstructured' contacts 
             description = "average number of random resident-resident contacts on each day"
             config_line = (@Name(bkg_contact_rate_per_resident_per_day) * ", " * description * ", " * "$bkg_contact_rate_per_resident_per_day" )
             config_str = config_str*config_line*"\n"
@@ -209,6 +218,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.w_reg_needs = w_reg_needs
 
+        # TODO: assert that the ratio w_reg_needs/w_high_needs = contact_rate_reg_needs / contact_rate_high_needs
         w_high_needs = 6.0 #2.0 # factor by which to increase contact strength between workers and high-needs residents  
             description = "between workers and residents with high needs levels"
             config_line = (@Name(w_high_needs) * ", " * description * ", " * "$(w_high_needs)" )
@@ -555,9 +565,15 @@ function update_config!(config::Config_T)
 
         # contact rate per resident per day 
         contact_rate_per_resident_per_day = config.contact_rate_per_resident_per_day
-            description = "average number of contacts sampled per resident on each day (high needs, reg. needs is 1/3 of this)"
+            description = "average number of contacts sampled per resident on each day (reg. needs)"
             config_line = (@Name(contact_rate_per_resident_per_day) * ", " * description * ", " * "$contact_rate_per_resident_per_day" )
             config_str = config_str*config_line*"\n"
+
+        contact_rate_per_resident_per_day_high_needs = config.contact_rate_per_resident_per_day_high_needs
+            description = "average number of contacts sampled per resident on each day (high. needs)"
+            config_line = (@Name(contact_rate_per_resident_per_day_high_needs) * ", " * description * ", " * "$contact_rate_per_resident_per_day_high_needs" )
+            config_str = config_str*config_line*"\n"
+
 
         # rate of resient background contacts per day (i.e., in shared communal spaces)
         bkg_contact_rate_per_resident_per_day = config.bkg_contact_rate_per_resident_per_day

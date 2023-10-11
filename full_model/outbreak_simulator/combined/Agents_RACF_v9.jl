@@ -348,7 +348,7 @@ function populate_residents_from_DataFrame_imDist!(residents_out::Dict{Int64, Ag
 end
 
 
-# for the R0 script, homogeneous populations reequire a reset function
+# for the R0 implementation, homogeneous populations reequire a reset function
 # this allows the agent population to be re-set without re-allocating
 # all network connections in the structured population. 
 # doing so should substantially increase efficiency for dense networks. 
@@ -566,6 +566,8 @@ function compute_total_weight_d(a::Agent_T, d::Int64)::Float64
 
 end
 
+
+#### used in R0 implementation 
 function compute_total_weight(a::Agent_T)::Float64
 
     w_tot = 0.0
@@ -661,7 +663,7 @@ function test_weighted_sample(A::Agents_T,
     return(ratios)
 
 end
-
+#######
 
 function compute_total_FTE(agents::Agents_T)::Float64
 
