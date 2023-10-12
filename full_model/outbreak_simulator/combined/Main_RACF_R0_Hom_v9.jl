@@ -341,7 +341,7 @@ function main_R0_homogeneous()
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_homo"
 
-            output_dir_L1 = pwd() * "\\output_v9_R0_hom_test_2\\$immunity_label\\$fac_label\\$n_label"
+            output_dir_L1 = pwd() * "\\output_v9_R0_hom_test_3\\$immunity_label\\$fac_label\\$n_label"
 
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
@@ -394,7 +394,11 @@ function main_R0_homogeneous()
 
                 #set contact rates: 
                 config_run.contact_rate_per_resident_per_day = 0.0 # no structured contacts
-                config_run.bkg_contact_rate_per_resident_per_day = 6.0
+                config_run.bkg_contact_rate_per_resident_per_day = 6.0 * 0.625
+                # factor of 0.544 correcting for absence of staff members
+                #NOTE: 121 staff members, 73.8 FTE * 5/7 equivalent to 52.71 person-days/day
+                # 88 residents / [88 + 52.71] = 0.625 is the effective population for
+                # computation of contact rates equivalent to the structured model.  
                 config_run.contact_rate_per_resident_per_day_high_needs = 9.0 #no high needs residents anyway
                 
                 #update the config parameters (ensuring any interdependent parameters are changed): 
@@ -421,7 +425,7 @@ function main_R0_homogeneous()
             end
 
             output_main_R0 = DataFrame(beta = transmission_scalers, 
-                                       R_est = secondary_cases)
+                                       R_est_hom = secondary_cases)
 
             output_fname = "$output_dir_L1\\beta_vs_R_est_hom.csv"
 

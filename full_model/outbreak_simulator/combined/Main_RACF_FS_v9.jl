@@ -530,7 +530,7 @@ function main_Final_Size()
                 config_run.bkg_contact_rate_per_resident_per_day = 3.0
                 config_run.contact_rate_per_resident_per_day_high_needs = 9.0 #no high needs residents anyway
                 
-                #update the config parameters (ensuring any interdependent parameters are changed): 
+                #update the config parameters (ensuring any interdependent parameters are updated): 
                 Setup_RACF.update_config!(config_run)
 
                 #write record of run configuration 

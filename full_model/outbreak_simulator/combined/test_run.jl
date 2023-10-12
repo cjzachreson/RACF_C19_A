@@ -24,17 +24,17 @@ include("./Transmission_Dynamics_v9.jl")
 import .Transmission_Dynamics
 
 
-include("./Main_RACF_R0_v9.jl")
+#include("./Main_RACF_R0_v9.jl")
 
 include("./Main_RACF_R0_Hom_v9.jl")
 
-include("./Main_RACF_FS_v9.jl")
+#include("./Main_RACF_FS_v9.jl")
 
 main_R0_homogeneous()
 
-main_R0()
+#main_R0()
 
-main_Final_Size()
+#main_Final_Size()
 
 
 
