@@ -306,7 +306,7 @@ function main_R0_homogeneous()
     
     #vaccine-acquired immunity: 
     immunity_states = Bool[false]
-    transmission_scalers = collect(0.005:0.005:0.2)
+    transmission_scalers = collect(0.005:0.005:0.5)
     
     n_instances_tot = 1000 # how many instances of the primary case simulation
     n_label = "n_$n_instances_tot"

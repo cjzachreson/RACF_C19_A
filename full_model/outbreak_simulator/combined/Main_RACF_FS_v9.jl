@@ -441,7 +441,7 @@ function main_Final_Size()
     
     #vaccine-acquired immunity: 
     immunity_states = Bool[false]
-    transmission_scalers = collect(0.005:0.005:0.2)
+    transmission_scalers = collect(0.005:0.005:0.5)
     
     n_instances_tot = 100 # how many instances of the primary case simulation
     n_label = "n_$n_instances_tot"
@@ -476,7 +476,7 @@ function main_Final_Size()
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
 
-            output_dir_L1 = pwd() * "\\output_v9_FS_test_2\\$immunity_label\\$fac_label\\$n_label"
+            output_dir_L1 = pwd() * "\\output_v9_FS_test_3\\$immunity_label\\$fac_label\\$n_label"
 
             if !ispath(output_dir_L1)
                 mkpath(output_dir_L1)
