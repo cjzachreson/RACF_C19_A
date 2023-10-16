@@ -96,8 +96,11 @@ function run_OB!(config::Setup_RACF.Config_T,
 
     #n_outbreaks_tot = 1000 # setting this a global. 
     n_outbreaks = 0
+
+    n_instances_max = 5000
+
     i = 0
-    while n_outbreaks < n_outbreaks_tot
+    while n_outbreaks < n_outbreaks_tot || i < n_instances_max
         #i in 1:n_runs
 
         config.active_outbreak = false
@@ -743,9 +746,9 @@ function main_OB()
 
         for (t_j) in test_configurations
 
-            test_config_label = test_configurations[t_j]
+            test_config_label = t_j
 
-            output_dir_L2 = "$\\$test_config_label\\$LD_label"
+            output_dir_L2 = "\\$test_config_label\\$LD_label"
             
             output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
             if !ispath(output_dir_fac)
@@ -760,7 +763,7 @@ function main_OB()
             
             #testing parameters: 
 
-            if LD_i == "no_asymp_testing"
+            if t_j == "no_asymp_testing"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 0.0
@@ -768,7 +771,7 @@ function main_OB()
                 config_run.p_test_if_symptomatic = 1.0
             end
 
-            if LD_i == "asymp_testing_OB_only"
+            if t_j == "asymp_testing_OB_only"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 1.0
@@ -776,7 +779,7 @@ function main_OB()
                 config_run.p_test_if_symptomatic = 1.0
             end
 
-            if LD_i == "asymp_testing"
+            if t_j == "asymp_testing"
                 config_run.p_test_per_day_workers_baseline = 1.0
                 config_run.p_test_per_day_residents_baseline = 1.0
                 config_run.p_test_per_day_workers_outbreak = 1.0
@@ -784,7 +787,7 @@ function main_OB()
                 config_run.p_test_if_symptomatic = 1.0
             end
 
-            if LD_i == "unmitigated"
+            if t_j == "unmitigated"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 0.0
@@ -813,7 +816,7 @@ function main_OB()
             Setup_RACF.read_in_population_data!(pop_run, config_run)
 
             facility = Facility_Structure.facility()
-            facility.id = fac_list.service_id[fac_i]
+            facility.id = facility_list.service_id[facility_index]
 
             run_OB!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
         end
