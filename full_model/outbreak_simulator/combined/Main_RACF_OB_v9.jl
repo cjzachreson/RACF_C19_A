@@ -746,7 +746,7 @@ function main_OB()
         if TC_i == "unmitigated"
             lockdown_compliance_i = [0.0]
         else
-            lockdown_compliancee_i = lockdown_compliance
+            lockdown_compliance_i = lockdown_compliance
         end
 
     for LD_j in lockdown_compliance_i  
