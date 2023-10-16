@@ -21,28 +21,28 @@
 # compliance with scheduled testing of workforce 
 
 
-include("./header_RACF.jl")
+# include("./header_RACF.jl")
 
-include("./Setup_RACF_v9.jl")
-import .Setup_RACF
+# include("./Setup_RACF_v9.jl")
+# import .Setup_RACF
 
-include("./Networks_RACF_v9.jl")
-import .Networks_RACF
+# include("./Networks_RACF_v9.jl")
+# import .Networks_RACF
 
-include("./Diseases_RACF_v9.jl")
-import .Diseases_RACF
+# include("./Diseases_RACF_v9.jl")
+# import .Diseases_RACF
 
-include("./Agents_RACF_v9.jl")
-import .Agents_RACF
+# include("./Agents_RACF_v9.jl")
+# import .Agents_RACF
 
-include("./Facility_Structure_v9.jl")
-import .Facility_Structure
+# include("./Facility_Structure_v9.jl")
+# import .Facility_Structure
 
-include("./Outbreak_Response_RACF_v9.jl")
-import .Outbreak_Response
+# include("./Outbreak_Response_RACF_v9.jl")
+# import .Outbreak_Response
 
-include("./Transmission_Dynamics_v9.jl")
-import .Transmission_Dynamics
+# include("./Transmission_Dynamics_v9.jl")
+# import .Transmission_Dynamics
 
 
 global NETWORK_TEST = false 
@@ -72,6 +72,7 @@ function run_OB!(config::Setup_RACF.Config_T,
         n_staff = Int64[],
         total_FTE = Float64[],
         index_case_type = String[],
+        t_first_detection = Float64[],
         OB_declared = Bool[],
         t_OB_on = Float64[],
         t_OB_off = Float64[],
@@ -665,6 +666,7 @@ function run_OB!(config::Setup_RACF.Config_T,
             total_infections_at_detection = NaN
             
         end
+        push!(output_linelist.t_first_detection, t_first_detection)
         push!(time_to_detection, t_first_detection)
         push!(tot_detections, total_detections)
         push!(tot_infections_at_detection, total_infections_at_detection)
@@ -695,138 +697,130 @@ function main_OB()
 
     # loop through exemplars and run the simulations: 
 
-
     output_dir_L1 = "" #placeholder
 
-    # DEFINE RANGE OF CONTROL PARAMETERS: 
+    # RANGE OF CONTROL PARAMETERS: 
+
+    test_configurations = String["no_asymp_testing", 
+                                 "asymp_testing_OB_only",
+                                 "asymp_testing",
+                                 "unmitigated"]
     
-    #vaccine-acquired immunity: 
-    immunity_states = [true]
-    
-    # delay values in days 
-    delay_vals = Int64[0]#Int64[0, 3, 5]#[0, 5]#[0, 6]#Int64[0, 2, 4, 6]
-    # compliance with scheduled testing (workers only)
-    test_compliance = Float64[0.0]#Float64[0.5]#Float64[1.0, 0.5, 0.25, 0.1, 0.0]#, 0.75, 0.5, 0.25, 0.0]
-    
-    # global modulation of PPE efficacy relative to default (NOTE: range [0.0, 1.0], 1.0 is default value, all other values reduce from default.)
-    PPE_efficacy_scalers = Float64[0.0]
+    lockdown_compliance = Float64[1.0, 0.9, 0.5, 0.0]
     
     n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
     # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
     
-    # 2022 09 19 : tests 
-    # (2) check that no agents who are removed are tested [x]
-    # iterate through outbreak-specific input files: 
+    # facility data for initialisation of ABM population: 
+    data_dir_L1 = pwd() 
     
-    data_dir_L1 = pwd() #C:\\Users\\czachreson\\Desktop\\policy_work\\RACF_2022\\RACF_code\\population_generator\\2022_09_02"
+    data_dir_L2 = "input\\hypotheticals"
     
-    data_dir_L2 = "input\\hypotheticals"#"\\network_generator_step_4\\agents_OB_model_ready_exemplar\\2022_09_02"
+    # list of facilities
+    facility_list_dir = "$data_dir_L1\\$data_dir_L2"
+    facility_list_fname = "$facility_list_dir\\hypothetical_facility_characteristics.csv"
+    facility_list = DataFrame(CSV.File(facility_list_fname, delim = ","))
+
+    #facility 3 - no shared rooms, no high-needs residents
+    facility_index = 3 
+    facility_label = "facID_$(facility_list.service_id[facility_index])_hyp"
+    data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$facility_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
     
-    # list of facilitis to iterate through
-    fac_list_dir = "$data_dir_L1\\$data_dir_L2"
-    fac_list_fname = "$fac_list_dir\\hypothetical_facility_characteristics.csv"
-    fac_list = DataFrame(CSV.File(fac_list_fname, delim = ","))
-    n_populations = size(fac_list, 1)
-
-
-    for im in immunity_states 
-
-        #global IMMUNITY = im
-
-        for i in 1:n_populations #facility indices
-
-            fac_i = i 
-        
-            fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"
-            
-            data_dirname = "$(data_dir_L1)\\$(data_dir_L2)\\$fac_label"#"$(data_dir_L1)$(data_dir_L2)\\$group_label\\$OB_label"
-
-
-            if !ispath(data_dirname)
-                continue 
-            end
-
-            if im
-                immunity_label = "immunity_on"
-            else
-                immunity_label = "immunity_off"
-            end
-
-            output_dir_L1 = pwd() * "\\output_v8_test\\$immunity_label\\$fac_label"
-            if !ispath(output_dir_L1)
-                mkpath(output_dir_L1)
-            end
-
-
-            for (d_i) in delay_vals 
-
-                delay_val_i = d_i
-
-                for (t_j) in test_compliance
-
-                    test_compliance_j = t_j
-
-                    for (e_i) in PPE_efficacy_scalers
-                        
-                        PPE_efficacy_relative_to_default = e_i
-
-                        delay_label = "response_delay_$delay_val_i"
-                        t_str = replace("$test_compliance_j", "."=> "p")
-                        test_compliance_label = "test_compliance_$t_str"
-                        e_str = replace("$PPE_efficacy_relative_to_default", "." => "p")
-                        PPE_efficacy_label = "PPE_efficacy_$e_str"
-
-
-                        output_dir_L2 = "$delay_label\\$test_compliance_label\\$PPE_efficacy_label"
-                        
-                        
-                        output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
-                        if !ispath(output_dir_fac)
-                            mkpath(output_dir_fac)
-                        end
-
-                        config_run = Setup_RACF.run_configuration()
-                        Setup_RACF.setup_run_default!(config_run, data_dirname)
-
-                        # modify any of the default config
-                        # parameters that are adjusted by the run loop
-                        # globals.
-
-                        #for comparison with original implementation 
-                        config_run.uniform_immunity = false
-                        
-                        Setup_RACF.set_immunity_dist!(config_run)
-                        
-                        config_run.immunity = im
-                        config_run.PPE_available = false
-                        config_run.delay_infection_control = delay_val_i
-                        config_run.p_test_per_day_workers_baseline = test_compliance_j
-                        config_run.p_test_per_day_workers_outbreak = test_compliance_j
-
-                        config_run.eff_IC_resident_resident *= PPE_efficacy_relative_to_default
-                        config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
-                        config_run.eff_IC_worker_resident *= PPE_efficacy_relative_to_default
-
-                        #update the config parameters (ensuring any interdependent parameters are changed): 
-
-                        Setup_RACF.update_config!(config_run)
-
-                        #write record of run configuration 
-                        Setup_RACF.write_config_details(config_run, output_dir_fac)
-
-                        pop_run = Setup_RACF.population_input()
-                        Setup_RACF.read_in_population_data!(pop_run, config_run)
-
-                        facility = Facility_Structure.facility()
-                        facility.id = fac_list.service_id[fac_i]
-
-                        run_OB!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
-                    end
-
-                end
-            end
-        end
+    if !ispath(data_dirname)
+        println("terminating simulation: facility info not found - check input data")
+        return
     end
 
+    output_dir_L1 = pwd() * "\\output_v9_OB_test\\$facility_label"
+    if !ispath(output_dir_L1)
+        mkpath(output_dir_L1)
+    end
+
+    for LD_i in lockdown_compliance  
+
+        LD_str = replace("$LD_i", "."=> "p")
+        LD_label = "lockdown_compliance_$LD_str"
+
+        for (t_j) in test_configurations
+
+            test_config_label = test_configurations[t_j]
+
+            output_dir_L2 = "$\\$test_config_label\\$LD_label"
+            
+            output_dir_fac = "$(output_dir_L1)\\$(output_dir_L2)"
+            if !ispath(output_dir_fac)
+                mkpath(output_dir_fac)
+            end
+
+            config_run = Setup_RACF.run_configuration()
+            Setup_RACF.setup_run_default!(config_run, data_dirname)
+
+            # set config parameters
+            Setup_RACF.set_immunity_dist!(config_run)
+            
+            #testing parameters: 
+
+            if LD_i == "no_asymp_testing"
+                config_run.p_test_per_day_workers_baseline = 0.0
+                config_run.p_test_per_day_residents_baseline = 0.0
+                config_run.p_test_per_day_workers_outbreak = 0.0
+                config_run.p_test_per_day_residents_outbreak = 0.0
+                config_run.p_test_if_symptomatic = 1.0
+            end
+
+            if LD_i == "asymp_testing_OB_only"
+                config_run.p_test_per_day_workers_baseline = 0.0
+                config_run.p_test_per_day_residents_baseline = 0.0
+                config_run.p_test_per_day_workers_outbreak = 1.0
+                config_run.p_test_per_day_residents_outbreak = 1.0
+                config_run.p_test_if_symptomatic = 1.0
+            end
+
+            if LD_i == "asymp_testing"
+                config_run.p_test_per_day_workers_baseline = 1.0
+                config_run.p_test_per_day_residents_baseline = 1.0
+                config_run.p_test_per_day_workers_outbreak = 1.0
+                config_run.p_test_per_day_residents_outbreak = 1.0
+                config_run.p_test_if_symptomatic = 1.0
+            end
+
+            if LD_i == "unmitigated"
+                config_run.p_test_per_day_workers_baseline = 0.0
+                config_run.p_test_per_day_residents_baseline = 0.0
+                config_run.p_test_per_day_workers_outbreak = 0.0
+                config_run.p_test_per_day_residents_outbreak = 0.0
+                config_run.p_test_if_symptomatic = 0.0
+            end
+
+            #distancing/lockdown parameters: 
+
+            config_run.resident_lockdown_efficacy = LD_i
+
+            config_run.resident_lockdown = true 
+            config_run.worker_case_isolation = true 
+            config_run.resident_case_isolation = true
+            config_run.resident_isolation_efficacy = 0.9 # imperfect compliance with resident case isolation 
+            config_run.removal_period = 7 #7-day furlough for positive workers
+
+            #update the config parameters (ensuring any interdependent parameters are changed): 
+
+            Setup_RACF.update_config!(config_run)
+
+            #write record of run configuration 
+            Setup_RACF.write_config_details(config_run, output_dir_fac)
+
+            pop_run = Setup_RACF.population_input()
+            Setup_RACF.read_in_population_data!(pop_run, config_run)
+
+            facility = Facility_Structure.facility()
+            facility.id = fac_list.service_id[fac_i]
+
+            run_OB!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
+        end
+
+    end
 end
+
+
+
 

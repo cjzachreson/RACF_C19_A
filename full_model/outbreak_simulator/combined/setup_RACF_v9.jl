@@ -115,7 +115,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
     config_str = "parameter variable name, human-readable description, value \n" # initialises an empty string 
 
         #transmission scaler (translates to <beta_max> in the current implementation of the transmission model)
-        transmission_scaler = 0.1#default
+        transmission_scaler = 0.2#default
             description = "Adjusts mean transmission rate up or down"
             config_line = (@Name(transmission_scaler) * ", " * description * ", " * "$transmission_scaler")
             config_str = config_str*config_line*"\n"
@@ -124,7 +124,7 @@ function setup_run_default!(config::Config_T, data_dirname::String)
 
         # add control parameter values to config:
         # response delay  
-        delay_infection_control = 2 # default 
+        delay_infection_control = 0 # default 
             description = "delay between outbreak declaration and implementation of infection control (days)"
             config_line = (@Name(delay_infection_control) * ", " * description * ", " * "$delay_infection_control" )
             config_str = config_str*config_line*"\n"
@@ -260,20 +260,20 @@ function setup_run_default!(config::Config_T, data_dirname::String)
 
 
 
-            # if IMMUNITY_FROM_DIST is true, define the cohort-specific distributions 
+            # if immunity_from_dist is true, define the cohort-specific distributions 
             # in this implementation these are the normal distributions from which
             # ln(neut) values are drawn: 
             # NOTE: this is not robust code, in future versions the distributions 
             # can be setup in a way that's more flexible. 
         
-        uniform_immunity = false #default 
+        uniform_immunity = true #default 
             description = "boolean flag true if all agent types have immunity drawn from the same distribution"
             config_line = (@Name(uniform_immunity) * ", " * description * ", " * "$uniform_immunity" )
             config_str = config_str*config_line*"\n"
             config.uniform_immunity = uniform_immunity
 
         # flag for toggling infection control during active outbreaks (false means unmitigated)
-        outbreak_control = false 
+        outbreak_control = true 
             description = "boolean flag true outbreak control measures are implemented"
             config_line = (@Name(outbreak_control) * ", " * description * ", " * "$outbreak_control" )
             config_str = config_str*config_line*"\n"
@@ -356,26 +356,26 @@ function setup_run_default!(config::Config_T, data_dirname::String)
             config_str = config_str*config_line*"\n"
             config.p_test_per_day_workers_baseline = p_test_per_day_workers_baseline
 
-        p_test_per_day_residents_baseline = 0.05
+        p_test_per_day_residents_baseline = 0.0
             description = "robability of a resident testing if no outbreak"
             config_line = (@Name(p_test_per_day_residents_baseline) * ", " * description * ", " * "$p_test_per_day_residents_baseline" )
             config_str = config_str*config_line*"\n"
             config.p_test_per_day_residents_baseline = p_test_per_day_residents_baseline
 
         #NOTE: this is now assigned from control parameter for test compliance. 
-        p_test_per_day_workers_outbreak = 1.0 #default 
+        p_test_per_day_workers_outbreak = 0.0 #default 
             description = "compliance probability for worker tests (outbreak)"
             config_line = (@Name(p_test_per_day_workers_outbreak) * ", " * description * ", " * "$p_test_per_day_workers_outbreak" )
             config_str = config_str*config_line*"\n"
             config.p_test_per_day_workers_outbreak = p_test_per_day_workers_outbreak
 
-        p_test_per_day_residents_outbreak = 0.5 #default
+        p_test_per_day_residents_outbreak = 0.0 #default
             description = "probability of a resident testing during an outbreak"
             config_line = (@Name(p_test_per_day_residents_outbreak) * ", " * description * ", " * "$p_test_per_day_residents_outbreak" )
             config_str = config_str*config_line*"\n"
             config.p_test_per_day_residents_outbreak = p_test_per_day_residents_outbreak
 
-        p_test_if_symptomatic = 1.0
+        p_test_if_symptomatic = 0.0
             description = "probability of a symptomatic individual testing if on site"
             config_line = (@Name(p_test_if_symptomatic) * ", " * description * ", " * "$p_test_if_symptomatic" )
             config_str = config_str*config_line*"\n"
@@ -434,32 +434,32 @@ function setup_run_default!(config::Config_T, data_dirname::String)
     config_str = config_str*"\n"*"*** outbreak response *** \n"
 
         # factor by which background interaction rates are reduced during active outbreak 
-        resident_lockdown = false 
+        resident_lockdown = true 
             description = "flag for whether contact rates between non-isolated residents will be reduced"
             config_line = (@Name(resident_lockdown) * ", " * description * ", " * "$resident_lockdown" )
             config_str = config_str*config_line*"\n"
             config.resident_lockdown = resident_lockdown
 
-        resident_lockdown_efficacy = 0.5 # representing discretionary changes 
+        resident_lockdown_efficacy = 0.0 # representing discretionary changes 
             description = "fraction by which background contact rates are reduced for residents during outbreaks"
             config_line = (@Name(resident_lockdown_efficacy) * ", " * description * ", " * "$resident_lockdown_efficacy" )
             config_str = config_str*config_line*"\n"
             config.resident_lockdown_efficacy = resident_lockdown_efficacy
 
         # duration for which a worker is removed from the facility if they test positive 
-        worker_case_isolation = false
+        worker_case_isolation = true
             description = "flag whether or not to furlough staff who test positive"
             config_line = (@Name(worker_case_isolation) * ", " * description * ", " * "$worker_case_isolation" )
             config_str = config_str*config_line*"\n"
             config.worker_case_isolation = worker_case_isolation
 
-        resident_case_isolation = false # 2022 09 12
+        resident_case_isolation = true # 2022 09 12
             description = "flag whether or not to isolate residents who test positive"
             config_line = (@Name(resident_case_isolation) * ", " * description * ", " * "$resident_case_isolation" )
             config_str = config_str*config_line*"\n"
             config.resident_case_isolation = resident_case_isolation
 
-        resident_isolation_efficacy = 0.90
+        resident_isolation_efficacy = 0.0
             description = "reduction in background contact rate for isolated residents"
             config_line = (@Name(resident_isolation_efficacy) * ", " * description * ", " * "$resident_isolation_efficacy" )
             config_str = config_str*config_line*"\n"
