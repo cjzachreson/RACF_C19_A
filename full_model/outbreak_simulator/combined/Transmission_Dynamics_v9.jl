@@ -440,6 +440,7 @@ function compute_transmission!(all_transmissions::DataFrame,
         end
     end
 
+
 end
 
 
@@ -482,10 +483,6 @@ function compute_transmission_R0!(all_transmissions::DataFrame,
                 # their isolation status is taken into account w.r.t. background contacts
                 # only. 
             end
-
-            #if day_of_week == 5 && a.id == 155
-            #    println("check here")
-            #end
 
             Agents_RACF.add_source_edges_to_E_list!(E_list_infectious_t, 
                                                     a, 
@@ -708,9 +705,16 @@ function add_background_contacts!(edges_out::Networks_RACF.E_list_T,
         if n_to_sample > 0
             n_sampled = 0
             while n_sampled < n_to_sample
-                
-                target_id = sample(config.rng_contacts, resident_ids, Weights(iso_weights)) # sampling background contacts from residents only
-                
+
+                w = Weights(iso_weights)
+
+                target_id = sample(config.rng_contacts, resident_ids, w) # sampling background contacts from residents only
+
+                # if (target_id == source_id)
+
+                #     println("$target_id $source_id")
+                # end
+
                 if (target_id != source_id)
                     new_edge = Networks_RACF.Edge(source_id, target_id, 1.0) #this will require memory allocation, may be faster to look up. 
                     push!(edges_out.edges, new_edge)

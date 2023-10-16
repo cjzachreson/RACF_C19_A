@@ -53,10 +53,12 @@ global NETWORK_TEST = false
 # a specified number of outbreaks have been recorded
 # in the output linelist
 function run_OB!(config::Setup_RACF.Config_T, 
-              pop::Setup_RACF.Pop_Input_T, 
-              facility::Facility_Structure.Facility_T,
-              n_outbreaks_tot::Int64,
-              output_dirname::String) # ! because run can modify config. 
+                 pop::Setup_RACF.Pop_Input_T, 
+                 facility::Facility_Structure.Facility_T,
+                 n_tot::Int64,
+                 n_outbreaks_flag::Bool,
+                 n_instances_flag::Bool,
+                 output_dirname::String) # ! because run can modify config. 
     
     #output linelist vectors 
 
@@ -84,9 +86,7 @@ function run_OB!(config::Setup_RACF.Config_T,
         Det_tot_staff = Int64[],
         I_tot_res = Int64[],
         Det_tot_res = Int64[],
-        FTE_def_max = Float64[],
-        n_tests_residents = Int64[],
-        n_tests_staff = Int64[],
+        FTE_def_max = Float64[]
     )
 
 
@@ -94,19 +94,19 @@ function run_OB!(config::Setup_RACF.Config_T,
     diseases = Diseases_RACF.diseases()
     Diseases_RACF.set_disease_dict!(diseases, config)
 
-    #n_outbreaks_tot = 1000 # setting this a global. 
-    n_outbreaks = 0
-
-    n_instances_max = 5000
+    n = 0
 
     i = 0
-    while n_outbreaks < n_outbreaks_tot || i < n_instances_max
+    while (n < n_tot)
         #i in 1:n_runs
 
+        i += 1
         config.active_outbreak = false
 
-        i += 1
-        #println("\n****run:$i")
+        if n_instances_flag
+            n += 1
+            println("\n****run:$i")
+        end
 
         seed_offset = i # used for re-seeding rngs for each run, for comparability between each linelist element. 
 
@@ -244,8 +244,6 @@ function run_OB!(config::Setup_RACF.Config_T,
                                    type_of_agent = [])
         
 
-        n_tests_staff_i = 0
-        n_tests_residents_i = 0
         # initialise transmission simulation
 
         # initialise time keepers 
@@ -330,6 +328,7 @@ function run_OB!(config::Setup_RACF.Config_T,
         step = 0
         while !termination_flag
             step += 1
+            #println(step)
             
             if step == step_final
                 termination_flag = true
@@ -422,7 +421,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                 # For now, I'll assume tests are immediately available, but PPE stockpile is not. 
                 if (config.active_outbreak && config.outbreak_control)
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    n_tests_staff_d = Outbreak_Response.test_workers!(all_detections, 
+                    Outbreak_Response.test_workers!(all_detections, 
                                                     config.p_test_per_day_workers_outbreak, 
                                                     agents, 
                                                     infected_agents, 
@@ -431,7 +430,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                     worker_ids_to_remove, 
                                                     config)
                     # test residents 
-                    n_tests_residnts_d = Outbreak_Response.test_residents!(all_detections, 
+                    Outbreak_Response.test_residents!(all_detections, 
                                                       config.p_test_per_day_residents_outbreak, 
                                                       agents, 
                                                       infected_agents, 
@@ -441,7 +440,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                       config)
                 else
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    n_tests_staff_d = Outbreak_Response.test_workers!(all_detections, 
+                    Outbreak_Response.test_workers!(all_detections, 
                                                     config.p_test_per_day_workers_baseline, 
                                                     agents, 
                                                     infected_agents, 
@@ -450,7 +449,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                     worker_ids_to_remove, 
                                                     config)
                     # test residents 
-                    n_tests_residnts_d = Outbreak_Response.test_residents!(all_detections, 
+                    Outbreak_Response.test_residents!(all_detections, 
                                                       config.p_test_per_day_residents_baseline, 
                                                       agents, 
                                                       infected_agents, 
@@ -459,9 +458,6 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                       resident_ids_to_isolate, 
                                                       config)
                 end
-
-                n_tests_staff_i += n_tests_staff_d
-                n_tests_residents_i += n_tests_residnts_d
 
                 # remove workers from rooms and from N_lists if they tested positive 
                 if config.worker_case_isolation
@@ -528,11 +524,13 @@ function run_OB!(config::Setup_RACF.Config_T,
                     OB_flag = Outbreak_Response.declare_outbreak(all_detections, t)
                     if OB_flag
                         config.active_outbreak = true
-                        n_outbreaks += 1 
-                        println("\n****run:$i")
-                        println("active outbreak declared at time $t")
-                        println("there are: $(size(all_transmissions,1)) infections ")
-                        println("total outbreaks: $n_outbreaks")
+                        if n_outbreaks_flag
+                            n += 1
+                            println("\n****run:$i")
+                            println("active outbreak declared at time $t")
+                            println("there are: $(size(all_transmissions,1)) infections ")
+                            println("total outbreaks: $n")
+                        end
                         output_linelist.OB_declared[i] = true 
                         output_linelist.t_OB_on[i] = t
                         output_linelist.I_cum_OB_on[i] = size(all_transmissions,1) + 1 # add one to include index case 
@@ -641,9 +639,6 @@ function run_OB!(config::Setup_RACF.Config_T,
         push!(output_linelist.I_tot_res, I_tot_res) 
         push!(output_linelist.Det_tot_res, Det_tot_res) 
 
-        push!(output_linelist.n_tests_residents, n_tests_residents_i)
-        push!(output_linelist.n_tests_staff, n_tests_staff_i)
-
 
 
         if isempty(all_transmissions)
@@ -704,15 +699,20 @@ function main_OB()
 
     # RANGE OF CONTROL PARAMETERS: 
 
-    test_configurations = String["no_asymp_testing", 
+    test_configurations = String["asymp_testing",
                                  "asymp_testing_OB_only",
-                                 "asymp_testing",
+                                 "no_asymp_testing", 
                                  "unmitigated"]
     
     lockdown_compliance = Float64[1.0, 0.9, 0.5, 0.0]
     
     n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
     # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
+    n_instances_tot = 100# how man 'instances' to run if detection is turned off. 
+    n = 0
+
+    count_outbreaks_flag = true #if we're counting declared outbreaks
+    count_instances_flag = false #if we're counting instances 
     
     # facility data for initialisation of ABM population: 
     data_dir_L1 = pwd() 
@@ -739,14 +739,24 @@ function main_OB()
         mkpath(output_dir_L1)
     end
 
-    for LD_i in lockdown_compliance  
+    for (TC_i) in test_configurations
 
-        LD_str = replace("$LD_i", "."=> "p")
+        test_config_label = TC_i
+
+        if TC_i == "unmitigated"
+            lockdown_compliance_i = [0.0]
+        else
+            lockdown_compliancee_i = lockdown_compliance
+        end
+
+    for LD_j in lockdown_compliance_i  
+
+        LD_str = replace("$LD_j", "."=> "p")
         LD_label = "lockdown_compliance_$LD_str"
 
-        for (t_j) in test_configurations
+        
 
-            test_config_label = t_j
+            
 
             output_dir_L2 = "\\$test_config_label\\$LD_label"
             
@@ -763,46 +773,63 @@ function main_OB()
             
             #testing parameters: 
 
-            if t_j == "no_asymp_testing"
+            if TC_i == "no_asymp_testing"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 0.0
                 config_run.p_test_per_day_residents_outbreak = 0.0
                 config_run.p_test_if_symptomatic = 1.0
+
+                n = n_outbreaks_tot
+                count_outbreaks_flag = true #if we're counting declared outbreaks
+                count_instances_flag = false #if we're counting instances 
+
             end
 
-            if t_j == "asymp_testing_OB_only"
+            if TC_i == "asymp_testing_OB_only"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 1.0
                 config_run.p_test_per_day_residents_outbreak = 1.0
                 config_run.p_test_if_symptomatic = 1.0
+
+                n = n_outbreaks_tot
+                count_outbreaks_flag = true #if we're counting declared outbreaks
+                count_instances_flag = false #if we're counting instances 
             end
 
-            if t_j == "asymp_testing"
+            if TC_i == "asymp_testing"
                 config_run.p_test_per_day_workers_baseline = 1.0
                 config_run.p_test_per_day_residents_baseline = 1.0
                 config_run.p_test_per_day_workers_outbreak = 1.0
                 config_run.p_test_per_day_residents_outbreak = 1.0
                 config_run.p_test_if_symptomatic = 1.0
+
+                n = n_outbreaks_tot
+                count_outbreaks_flag = true #if we're counting declared outbreaks
+                count_instances_flag = false #if we're counting instances 
             end
 
-            if t_j == "unmitigated"
+            if TC_i == "unmitigated"
                 config_run.p_test_per_day_workers_baseline = 0.0
                 config_run.p_test_per_day_residents_baseline = 0.0
                 config_run.p_test_per_day_workers_outbreak = 0.0
                 config_run.p_test_per_day_residents_outbreak = 0.0
                 config_run.p_test_if_symptomatic = 0.0
+
+                n = n_instances_tot
+                count_outbreaks_flag = false #if we're counting declared outbreaks
+                count_instances_flag = true #if we're counting instances 
             end
 
             #distancing/lockdown parameters: 
 
-            config_run.resident_lockdown_efficacy = LD_i
+            config_run.resident_lockdown_efficacy = LD_j
 
             config_run.resident_lockdown = true 
             config_run.worker_case_isolation = true 
             config_run.resident_case_isolation = true
-            config_run.resident_isolation_efficacy = 0.9 # imperfect compliance with resident case isolation 
+            config_run.resident_isolation_efficacy = max(0.9, LD_j) # imperfect compliance with resident case isolation 
             config_run.removal_period = 7 #7-day furlough for positive workers
 
             #update the config parameters (ensuring any interdependent parameters are changed): 
@@ -818,7 +845,7 @@ function main_OB()
             facility = Facility_Structure.facility()
             facility.id = facility_list.service_id[facility_index]
 
-            run_OB!(config_run, pop_run, facility, n_outbreaks_tot, output_dir_fac)
+            run_OB!(config_run, pop_run, facility, n, count_outbreaks_flag, count_instances_flag, output_dir_fac)
         end
 
     end
