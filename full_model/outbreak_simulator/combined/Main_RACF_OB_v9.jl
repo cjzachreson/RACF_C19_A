@@ -86,7 +86,8 @@ function run_OB!(config::Setup_RACF.Config_T,
         Det_tot_staff = Int64[],
         I_tot_res = Int64[],
         Det_tot_res = Int64[],
-        FTE_def_max = Float64[]
+        FTE_def_max = Float64[],
+        sim_duration = Float64[]
     )
 
 
@@ -130,7 +131,6 @@ function run_OB!(config::Setup_RACF.Config_T,
         F_max = 0 # maximum number of concurrently furloughed staff 
         Iso_max = 0 # maximum number of isolated residents 
         FTE_def_max = 0 # maximum FTE deficit from furlough 
-
 
         ## ***** ##
         #initialise Agents 
@@ -248,7 +248,7 @@ function run_OB!(config::Setup_RACF.Config_T,
 
         # initialise time keepers 
         t_i = 0.0
-        t_f = 90.0 # three months, maximum simulation time. 
+        t_f = 120.0 # ~4 months, maximum simulation time. 
         termination_flag = false 
         step_final = convert(Int64, ceil((t_f - t_i)/config.dt ))
 
@@ -321,7 +321,7 @@ function run_OB!(config::Setup_RACF.Config_T,
         time_since_outbreak_declared = 0
         config.PPE_available = false #this gets toggled on after delay. 
 
-
+        sim_duration_i = 0.0
 
         #for numeric times:
         small_num = 0.0000000001
@@ -569,6 +569,9 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                         t, 
                                                         config)
 
+            if termination_flag
+                sim_duration_i = t
+            end
         end
 
         # 2022 09 20
@@ -621,6 +624,7 @@ function run_OB!(config::Setup_RACF.Config_T,
         push!(output_linelist.FTE_def_max, FTE_def_max) # maximum FTE deficit from furlough 
 
 
+        push!(output_linelist.sim_duration, sim_duration_i)
         # count total infections and detections in staff and residents 
 
         I_tot_staff = Agents_RACF.count_worker_infections(agents, all_transmissions)
@@ -704,11 +708,11 @@ function main_OB()
                                  "no_asymp_testing", 
                                  "unmitigated"]
     
-    lockdown_compliance = Float64[1.0, 0.9, 0.5, 0.0]
+    lockdown_compliance = Float64[0.9, 0.75, 0.5, 0.25, 0.0]
     
-    n_outbreaks_tot = 10 # how many 'declared' outbreaks to simulate before terminating each run loop
+    n_outbreaks_tot = 1000 # how many 'declared' outbreaks to simulate before terminating each run loop
     # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
-    n_instances_tot = 100# how man 'instances' to run if detection is turned off. 
+    n_instances_tot = 10000# how man 'instances' to run if detection is turned off. 
     n = 0
 
     count_outbreaks_flag = true #if we're counting declared outbreaks
@@ -829,7 +833,9 @@ function main_OB()
             config_run.resident_lockdown = true 
             config_run.worker_case_isolation = true 
             config_run.resident_case_isolation = true
-            config_run.resident_isolation_efficacy = max(0.9, LD_j) # imperfect compliance with resident case isolation 
+            config_run.resident_isolation_efficacy = 0.9 # imperfect compliance with resident case isolation 
+            # NOTE: case isolation efficacy must be leq (<=) lockdown efficacy or background contact
+            # assignment may fail TODO: assert this constraint or alter implementation to accept deviations
             config_run.removal_period = 7 #7-day furlough for positive workers
 
             #update the config parameters (ensuring any interdependent parameters are changed): 

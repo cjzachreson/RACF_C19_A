@@ -254,7 +254,7 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T,
 
     rooms_d = rooms.Day_to_Rooms[d]
 
-    id_to_contacts = N_lists_in.id_to_contacts
+    #id_to_contacts = N_lists_in.id_to_contacts
 
     #iterate through rooms 
      # TODO: update input arguments to take a list of rooms to update. 
@@ -269,8 +269,8 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T,
 
             # note: when adapting this to update existing edge lists, we have to first clear all old contacts FROM this room_id
             # use conditional indexing 
-            contacts_to_keep = (c->c.room_id).(id_to_contacts[source_id]) .!= room_id
-            id_to_contacts[source_id] = id_to_contacts[source_id][contacts_to_keep] 
+            contacts_to_keep = (c->c.room_id).(N_lists_in.id_to_contacts[source_id]) .!= room_id
+            N_lists_in.id_to_contacts[source_id] = N_lists_in.id_to_contacts[source_id][contacts_to_keep] 
             # this works for the agents who have not been removed, but does not update 
             # the network for the removed agent (because they're not in the room to iterate over)
 
@@ -282,11 +282,11 @@ function update_N_lists_d_from_Rooms!(rooms::Rooms_T,
                     weight = 1.0
                     contact = Networks_RACF.Contact(target_id, d, weight)
                     contact.room_id = room_id 
-                    if haskey(id_to_contacts, source_id)
-                        push!(id_to_contacts[source_id], contact) 
+                    if haskey(N_lists_in.id_to_contacts, source_id)
+                        push!(N_lists_in.id_to_contacts[source_id], contact) 
                     else
-                        id_to_contacts[source_id] = Array{Networks_RACF.Contact_T, 1}()
-                        push!(id_to_contacts[source_id], contact)
+                        N_lists_in.id_to_contacts[source_id] = Array{Networks_RACF.Contact_T, 1}()
+                        push!(N_lists_in.id_to_contacts[source_id], contact)
                     end 
 
                 end
