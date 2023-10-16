@@ -83,7 +83,9 @@ function run_OB!(config::Setup_RACF.Config_T,
         Det_tot_staff = Int64[],
         I_tot_res = Int64[],
         Det_tot_res = Int64[],
-        FTE_def_max = Float64[]
+        FTE_def_max = Float64[],
+        n_tests_residents = Int64[],
+        n_tests_staff = Int64[],
     )
 
 
@@ -237,6 +239,9 @@ function run_OB!(config::Setup_RACF.Config_T,
                                    time_detected = [], 
                                    type_of_agent = [])
         
+
+        n_tests_staff_i = 0
+        n_tests_residents_i = 0
         # initialise transmission simulation
 
         # initialise time keepers 
@@ -413,7 +418,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                 # For now, I'll assume tests are immediately available, but PPE stockpile is not. 
                 if (config.active_outbreak && config.outbreak_control)
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    Outbreak_Response.test_workers!(all_detections, 
+                    n_tests_staff_d = Outbreak_Response.test_workers!(all_detections, 
                                                     config.p_test_per_day_workers_outbreak, 
                                                     agents, 
                                                     infected_agents, 
@@ -422,7 +427,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                     worker_ids_to_remove, 
                                                     config)
                     # test residents 
-                    Outbreak_Response.test_residents!(all_detections, 
+                    n_tests_residnts_d = Outbreak_Response.test_residents!(all_detections, 
                                                       config.p_test_per_day_residents_outbreak, 
                                                       agents, 
                                                       infected_agents, 
@@ -432,7 +437,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                       config)
                 else
                     # test workers, workers who test positive are removed for (e.g.) 14 days 
-                    Outbreak_Response.test_workers!(all_detections, 
+                    n_tests_staff_d = Outbreak_Response.test_workers!(all_detections, 
                                                     config.p_test_per_day_workers_baseline, 
                                                     agents, 
                                                     infected_agents, 
@@ -441,7 +446,7 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                     worker_ids_to_remove, 
                                                     config)
                     # test residents 
-                    Outbreak_Response.test_residents!(all_detections, 
+                    n_tests_residnts_d = Outbreak_Response.test_residents!(all_detections, 
                                                       config.p_test_per_day_residents_baseline, 
                                                       agents, 
                                                       infected_agents, 
@@ -450,6 +455,9 @@ function run_OB!(config::Setup_RACF.Config_T,
                                                       resident_ids_to_isolate, 
                                                       config)
                 end
+
+                n_tests_staff_i += n_tests_staff_d
+                n_tests_residents_i += n_tests_residnts_d
 
                 # remove workers from rooms and from N_lists if they tested positive 
                 if config.worker_case_isolation
@@ -628,6 +636,9 @@ function run_OB!(config::Setup_RACF.Config_T,
         push!(output_linelist.Det_tot_staff, Det_tot_staff) 
         push!(output_linelist.I_tot_res, I_tot_res) 
         push!(output_linelist.Det_tot_res, Det_tot_res) 
+
+        push!(output_linelist.n_tests_residents, n_tests_residents_i)
+        push!(output_linelist.n_tests_staff, n_tests_staff_i)
 
 
 

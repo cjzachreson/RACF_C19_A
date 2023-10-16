@@ -79,7 +79,9 @@ end
 function test_workers!(detections::DataFrame, p_test_per_day::Float64, 
                        agents::Agents_RACF.Agents_T, infected_agents::Dict{Int64, Float64},
                        day_of_week::Int64, t::Float64, ids_to_remove::Array{Int64, 1},
-                       config::Setup_RACF.Config_T) # agents, df, 
+                       config::Setup_RACF.Config_T)::Int64 # agents, df, 
+
+    n_tests = 0
 
     # test for existing infections (RAT): 
     for (id, t_inf) in infected_agents
@@ -104,6 +106,7 @@ function test_workers!(detections::DataFrame, p_test_per_day::Float64,
                     end
                     
                     if rand(config.rng_testing) < p #config
+                        n_tests += 1
                         tested_positive = test_agent(a, config)
                         if tested_positive 
 
@@ -127,13 +130,17 @@ function test_workers!(detections::DataFrame, p_test_per_day::Float64,
             end
         end
     end
+
+    return n_tests
+
 end
 
 function test_residents!(detections::DataFrame, p_test_per_day::Float64, 
                          agents::Agents_RACF.Agents_T, infected_agents::Dict{Int64, Float64}, 
                          day_of_week::Int64, t::Float64, resident_ids_to_isolate::Array{Int64, 1},
-                         config::Setup_RACF.Config_T) #agents
+                         config::Setup_RACF.Config_T)::Int64 #agents
 
+    n_tests = 0
     # test for existing infections (RAT): 
     for (id, t_inf) in infected_agents
         a = agents.All[id] 
@@ -150,7 +157,7 @@ function test_residents!(detections::DataFrame, p_test_per_day::Float64,
                     end
                     
                     if rand(config.rng_testing) < p #config
-
+                        n_tests += 1
                         tested_positive = test_agent(a, config)
                         if tested_positive 
 
@@ -167,6 +174,9 @@ function test_residents!(detections::DataFrame, p_test_per_day::Float64,
             end
         end
     end
+
+    return n_tests
+
 end
 
 
