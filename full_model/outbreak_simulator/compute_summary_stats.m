@@ -1,0 +1,414 @@
+% analysis of summary statistics from outbreak simulations
+
+clear all
+close all
+
+root_dir = pwd();
+        
+data_dir = [root_dir, '\output_v9_OB_test\facID_10000003_hyp\'];
+
+
+testing_strategies = ["asymp_testing",...
+                      "asymp_testing_OB_only",...
+                      "no_asymp_testing",...
+                      "unmitigated"];
+
+           
+lockdown_compliance_OB = ["0.9", "0.5", "0.0"] %["0.9", "0.75", "0.5", "0.25", "0.0"];
+lockdown_compliance_unmitigated = ["0.0"];
+
+%% set up output table for summary stats: 
+
+%medians and 90th quantiles: 
+
+% cumulative incidence
+% outbreak duration
+% peak FTE deficit
+% cumulative detected resident cases
+% time to outbreak declaration
+% time to first case detection
+
+VarNames_q50 = {'cum_I_q50',...
+            'OB_duration_q50',...
+            'peak_FTE_def_q50',...
+            'cum_Res_Iso_q50',...
+            't_declare_q50',...
+            't_first_case_q50'};
+        
+VarNames_q90 = {'cum_I_q90',...
+            'OB_duration_q90',...
+            'peak_FTE_def_q90',...
+            'cum_Res_Iso_q90',...
+            't_declare_q90',...
+            't_first_case_q90'};
+        
+VarTypes = {'double','double','double','double','double','double'};
+
+%set up row names corresponding to each scenario: 
+[A,B] = meshgrid(testing_strategies,lockdown_compliance_OB);
+c=cat(2,A',B');
+d=reshape(c,[],2);
+d = strcat(d(:, 1), '_LD_' ,d(:, 2));
+
+row_names = cellstr(d);
+
+summary_stats_q50 = table('Size', [size(row_names, 1), size(VarNames_q50, 2)],...
+                          'VariableTypes', VarTypes,...
+                          'VariableNames', VarNames_q50,...
+                          'RowNames', row_names) ;
+
+summary_stats_q90 = table('Size', [size(row_names, 1), size(VarNames_q90, 2)],...
+                          'VariableTypes', VarTypes,...
+                          'VariableNames', VarNames_q90,...
+                          'RowNames', row_names) ;
+
+             
+       
+%% plots of total cumulative incidence. 
+for i = 1:size(testing_strategies, 2)
+    
+    strat_i = char(testing_strategies(i));
+    
+    data_dir_i = [data_dir, strat_i, '\'];
+    
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = lockdown_compliance_unmitigated;
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    
+    
+    for j = 1:size(lockdown_compliance, 2)
+       
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        I_tot_All = output_linelist_ij.I_tot_res +...
+                   output_linelist_ij.I_tot_staff;
+        
+        I_tot_OB = output_linelist_ij.I_tot_res(is_outbreak) +...
+                   output_linelist_ij.I_tot_staff(is_outbreak);
+               
+  
+        if strcmp(strat_i, 'unmitigated')
+            I_tot = I_tot_All;
+        else
+            I_tot = I_tot_OB;
+        end
+        
+        cum_I_q50 = quantile(I_tot, 0.5);
+        cum_I_q90 = quantile(I_tot, 0.9);
+        
+        summary_stats_q50([scenario_label_ij], ["cum_I_q50"]) = {cum_I_q50};
+        summary_stats_q90([scenario_label_ij], ["cum_I_q90"]) = {cum_I_q90};
+        
+        %TODO: write csv of histogram counts to file, 
+        % add summary stats to the rest of the output measures. 
+        
+        figure(i)
+        histogram(I_tot, 'BinEdges', [1:10:210])
+        hold on
+                                    
+    end
+    
+    Legend = cell(1, 1);
+    
+    for j = 1:size(lockdown_compliance, 2)
+        LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+        Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+    end
+    legend(Legend) 
+end
+
+
+
+%% plots of outbreak duration: 
+for i = 1:size(testing_strategies, 2)
+    
+    strat_i = char(testing_strategies(i));
+    
+    data_dir_i = [data_dir, strat_i, '\'];
+    
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    
+    
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        
+        t_OB_on = output_linelist_ij.t_OB_on(is_outbreak);   
+        
+        t_OB_over = output_linelist_ij.sim_duration(is_outbreak);
+        
+        OB_duration = t_OB_over - t_OB_on;
+               
+        figure(i + size(testing_strategies, 2)*2)
+        histogram(OB_duration, 'BinEdges', [1:5:100])
+        ylabel('outbreak duration')
+        %legend([strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')])
+        hold on
+        
+                                    
+    end
+    
+    Legend = cell(1, 1);
+    
+    if ~isempty(lockdown_compliance)
+        for j = 1:size(lockdown_compliance, 2)
+            LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+            Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+        end
+        legend(Legend) 
+    end
+end
+
+
+
+%% plot outbreak duration vs. cumulative cases
+%{
+for i = 1:size(testing_strategies, 2)
+    
+    strat_i = char(testing_strategies(i));
+    
+    data_dir_i = [data_dir, strat_i, '\'];
+    
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    
+    
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        
+        t_OB_on = output_linelist_ij.t_OB_on(is_outbreak);   
+        
+        t_OB_over = output_linelist_ij.sim_duration(is_outbreak);
+        
+        OB_duration = t_OB_over - t_OB_on;
+        
+        
+        I_tot_OB = output_linelist_ij.I_tot_res(is_outbreak) +...
+                   output_linelist_ij.I_tot_staff(is_outbreak);
+               
+        figure(i + size(testing_strategies, 2)*2)
+        scatter(I_tot_OB, OB_duration, '.')
+        ylabel('outbreak duration vs. cumulative incidence')
+        hold on
+        
+                                    
+    end
+    
+    Legend = cell(2, 1);
+    
+    for j = 1:size(lockdown_compliance, 2)
+        LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+        Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+    end
+    legend(Legend) 
+end
+%}
+
+
+
+%% plot peak FTE deficit
+for i = 1:size(testing_strategies, 2)
+    strat_i = char(testing_strategies(i));
+    data_dir_i = [data_dir, strat_i, '\'];
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        peak_FTE_def = output_linelist_ij.FTE_def_max(is_outbreak);   
+        
+        figure(i + size(testing_strategies, 2)*3)
+        histogram(peak_FTE_def, 'BinEdges', [1:2:50])
+        ylabel('peak FTE deficit')
+        hold on
+        
+                                    
+    end
+    
+    if ~isempty(lockdown_compliance)
+        Legend = cell(1, 1);
+
+        for j = 1:size(lockdown_compliance, 2)
+            LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+            Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+        end
+        legend(Legend) 
+    end
+end
+
+
+
+%% plot cumulative residents detected (isolated)
+for i = 1:size(testing_strategies, 2)
+    strat_i = char(testing_strategies(i));
+    data_dir_i = [data_dir, strat_i, '\'];
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        cumulative_res_detected = output_linelist_ij.Det_tot_res(is_outbreak);   
+        
+        figure(i + size(testing_strategies, 2)*4)
+        histogram(cumulative_res_detected, 'BinEdges', [1:5:90])
+        ylabel('total isolated residents (detected)')
+        hold on
+        
+                                    
+    end
+    
+    if ~isempty(lockdown_compliance)
+        Legend = cell(1, 1);
+
+        for j = 1:size(lockdown_compliance, 2)
+            LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+            Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+        end
+        legend(Legend) 
+    end
+end
+
+
+
+%% plot time to outbreak declaration
+for i = 1:size(testing_strategies, 2)
+    strat_i = char(testing_strategies(i));
+    data_dir_i = [data_dir, strat_i, '\'];
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        t_outbreak_declared = output_linelist_ij.t_OB_on(is_outbreak);   
+        
+        figure(i + size(testing_strategies, 2)*5)
+        histogram(t_outbreak_declared, 'BinEdges', [1:2:90])
+        ylabel('delay until outbreak declaration')
+        hold on
+        
+                                    
+    end
+    
+    if ~isempty(lockdown_compliance)
+        Legend = cell(1, 1);
+
+        for j = 1:size(lockdown_compliance, 2)
+            LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+            Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+        end
+        legend(Legend) 
+    end
+end
+
+
+
+%% plot time to first detected case
+for i = 1:size(testing_strategies, 2)
+    strat_i = char(testing_strategies(i));
+    data_dir_i = [data_dir, strat_i, '\'];
+    if strcmp(strat_i, 'unmitigated')
+        lockdown_compliance = [];
+    else
+        lockdown_compliance = lockdown_compliance_OB;
+    end
+    for j = 1:size(lockdown_compliance, 2)
+       
+        LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
+        
+        data_dir_ij = [data_dir_i, 'lockdown_compliance_' LD_j '\'];
+        
+        output_linelist_ij = readtable([data_dir_ij,...
+                                        'output_linelist.csv']);
+        
+        is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
+        
+        t_first_detection = output_linelist_ij.t_first_detection(is_outbreak);   
+        
+        figure(i + size(testing_strategies, 2)*6)
+        histogram(t_first_detection, 'BinEdges', [1:2:90])
+        ylabel('delay until first detected case')
+        hold on
+        
+                                    
+    end
+    
+    if ~isempty(lockdown_compliance)
+        Legend = cell(1, 1);
+
+        for j = 1:size(lockdown_compliance, 2)
+            LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
+            Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
+        end
+        legend(Legend) 
+    end
+end
