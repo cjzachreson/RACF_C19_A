@@ -39,8 +39,8 @@ log_sig_wM, standard deviation of natural log neuts (medical staff), 1.07
 p_test_per_day, prob. of testing an agent each day, only used if testing is not stratified by agent type, 0.0
 p_test_per_day_workers_baseline, compliance probability for worker tests (no outbreak), 0.0
 p_test_per_day_residents_baseline, robability of a resident testing if no outbreak, 0.0
-p_test_per_day_workers_outbreak, compliance probability for worker tests (outbreak), 1.0
-p_test_per_day_residents_outbreak, probability of a resident testing during an outbreak, 1.0
+p_test_per_day_workers_outbreak, compliance probability for worker tests (outbreak), 0.0
+p_test_per_day_residents_outbreak, probability of a resident testing during an outbreak, 0.0
 p_test_if_symptomatic, probability of a symptomatic individual testing if on site, 1.0
 
 *** pairwise efficacy of infection control ***  
@@ -51,7 +51,7 @@ eff_IC_resident_resident, between residents and residents, 0.2
 
 *** outbreak response *** 
 resident_lockdown, flag for whether contact rates between non-isolated residents will be reduced, true
-resident_lockdown_efficacy, fraction by which background contact rates are reduced for residents during outbreaks, 0.0
+resident_lockdown_efficacy, fraction by which background contact rates are reduced for residents during outbreaks, 0.75
 worker_case_isolation, flag whether or not to furlough staff who test positive, true
 resident_case_isolation, flag whether or not to isolate residents who test positive, true
 resident_isolation_efficacy, reduction in background contact rate for isolated residents, 0.9

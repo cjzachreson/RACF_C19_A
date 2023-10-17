@@ -66,4 +66,4 @@ resident_index_case, worker index case vs. resident index case (if both are true
 worker_index_case, worker index case vs. resident index case (if both are true it can be either), true
 
 ***population data location***
-C:\Users\czachreson\Desktop\compositions_in_progress\RACF_A_outbreak_response\code\RACF_C19_A_repo\full_model\outbreak_simulator\combined\input\hypotheticals\facID_10000003_hyp
+C:\Users\czachreson\OneDrive - The University of Melbourne\Desktop\RACF_remote_desktop\RACF_C19_A\full_model\outbreak_simulator\combined\input\hypotheticals\facID_10000003_hyp
