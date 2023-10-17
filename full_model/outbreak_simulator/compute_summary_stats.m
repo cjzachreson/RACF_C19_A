@@ -7,6 +7,7 @@ root_dir = pwd();
         
 data_dir = [root_dir, '\output_v9_OB_test\facID_10000003_hyp\'];
 
+output_dir = [root_dir, '\analysis\output_summary_stats\'];
 
 testing_strategies = ["asymp_testing",...
                       "asymp_testing_OB_only",...
@@ -79,10 +80,6 @@ for i = 1:size(testing_strategies, 2)
     
     
     for j = 1:size(lockdown_compliance, 2)
-       
-        
-        scenario_label_ij = ...
-            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
         
         LD_j = strrep(char(lockdown_compliance(j)), '.', 'p');
         
@@ -101,7 +98,7 @@ for i = 1:size(testing_strategies, 2)
                
   
         if strcmp(strat_i, 'unmitigated')
-            I_tot = I_tot_All;
+            I_tot = I_tot_All(I_tot_All > 80); %HACK: this just plots the big outbreaks (for comparison)
         else
             I_tot = I_tot_OB;
         end
@@ -109,15 +106,29 @@ for i = 1:size(testing_strategies, 2)
         cum_I_q50 = quantile(I_tot, 0.5);
         cum_I_q90 = quantile(I_tot, 0.9);
         
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
         summary_stats_q50([scenario_label_ij], ["cum_I_q50"]) = {cum_I_q50};
         summary_stats_q90([scenario_label_ij], ["cum_I_q90"]) = {cum_I_q90};
         
-        %TODO: write csv of histogram counts to file, 
-        % add summary stats to the rest of the output measures. 
-        
         figure(i)
-        histogram(I_tot, 'BinEdges', [1:10:210])
+        d = 10;
+        h = histogram(I_tot, 'BinEdges', [1:d:210], 'normalization', 'probability');
+        xlabel('cumulative cases')
         hold on
+        
+        I_tot = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_I_tot = table(I_tot, frequency);
+        
+        hist_fname = ['I_tot_hist_',...
+            char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_I_tot, [output_dir, hist_fname])
+        
+        
                                     
     end
     
@@ -164,11 +175,31 @@ for i = 1:size(testing_strategies, 2)
         
         OB_duration = t_OB_over - t_OB_on;
                
+        % output summary statistics. 
+        OB_duration_q50 = quantile(OB_duration, 0.5);
+        OB_duration_q90 = quantile(OB_duration, 0.9);
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        summary_stats_q50([scenario_label_ij], ["OB_duration_q50"]) = {OB_duration_q50};
+        summary_stats_q90([scenario_label_ij], ["OB_duration_q90"]) = {OB_duration_q90};
+        
         figure(i + size(testing_strategies, 2)*2)
-        histogram(OB_duration, 'BinEdges', [1:5:100])
-        ylabel('outbreak duration')
-        %legend([strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')])
+        d = 5;
+        h = histogram(OB_duration, 'BinEdges', [1:d:100], 'normalization', 'probability');
+        xlabel('outbreak duration')
         hold on
+        
+        duration = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_duration = table(duration, frequency);
+        
+        hist_fname = ['OB_duration_hist_',...
+                      char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_duration, [output_dir, hist_fname])
         
                                     
     end
@@ -265,10 +296,32 @@ for i = 1:size(testing_strategies, 2)
         
         peak_FTE_def = output_linelist_ij.FTE_def_max(is_outbreak);   
         
+        
+        % output summary statistics. 
+        peak_FTE_def_q50 = quantile(peak_FTE_def, 0.5);
+        peak_FTE_def_q90 = quantile(peak_FTE_def, 0.9);
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        summary_stats_q50([scenario_label_ij], ["peak_FTE_def_q50"]) = {peak_FTE_def_q50};
+        summary_stats_q90([scenario_label_ij], ["peak_FTE_def_q90"]) = {peak_FTE_def_q90};
+        
         figure(i + size(testing_strategies, 2)*3)
-        histogram(peak_FTE_def, 'BinEdges', [1:2:50])
-        ylabel('peak FTE deficit')
+        d = 2;
+        h = histogram(peak_FTE_def, 'BinEdges', [1:d:50], 'normalization', 'probability');
+        xlabel('peak FTE deficit')
         hold on
+        
+        max_FTE_def = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_FTE = table(max_FTE_def, frequency);
+        
+        hist_fname = ['FTE_def_hist_',...
+                      char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_FTE, [output_dir, hist_fname])
         
                                     
     end
@@ -306,12 +359,35 @@ for i = 1:size(testing_strategies, 2)
         
         is_outbreak = strcmp(output_linelist_ij.OB_declared, 'true');
         
-        cumulative_res_detected = output_linelist_ij.Det_tot_res(is_outbreak);   
+        cum_Res_Iso = output_linelist_ij.Det_tot_res(is_outbreak);   
+        
+        
+        % output summary statistics. 
+        cum_Res_Iso_q50 = quantile(cum_Res_Iso, 0.5);
+        cum_Res_Iso_q90 = quantile(cum_Res_Iso, 0.9);
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        summary_stats_q50([scenario_label_ij], ["cum_Res_Iso_q50"]) = {cum_Res_Iso_q50};
+        summary_stats_q90([scenario_label_ij], ["cum_Res_Iso_q90"]) = {cum_Res_Iso_q90};
         
         figure(i + size(testing_strategies, 2)*4)
-        histogram(cumulative_res_detected, 'BinEdges', [1:5:90])
-        ylabel('total isolated residents (detected)')
+        d = 5;
+        h = histogram(cum_Res_Iso, 'BinEdges', [1:d:90],...
+            'normalization', 'probability');
+        xlabel('total isolated residents (detected)')
         hold on
+        
+        tot_Res_Iso = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_Iso = table(max_FTE_def, frequency);
+        
+        hist_fname = ['Iso_hist_',...
+                      char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_Iso, [output_dir, hist_fname])
         
                                     
     end
@@ -351,10 +427,33 @@ for i = 1:size(testing_strategies, 2)
         
         t_outbreak_declared = output_linelist_ij.t_OB_on(is_outbreak);   
         
+        
+        % output summary statistics. 
+        t_declare_q50 = quantile(t_outbreak_declared, 0.5);
+        t_declare_q90 = quantile(t_outbreak_declared, 0.9);
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        summary_stats_q50([scenario_label_ij], ["t_declare_q50"]) = {t_declare_q50};
+        summary_stats_q90([scenario_label_ij], ["t_declare_q90"]) = {t_declare_q90};
+        
         figure(i + size(testing_strategies, 2)*5)
-        histogram(t_outbreak_declared, 'BinEdges', [1:2:90])
-        ylabel('delay until outbreak declaration')
+        d = 2;
+        h = histogram(t_outbreak_declared, 'BinEdges', [1:d:90],...
+            'normalization', 'probability');
+        xlabel('delay until outbreak declaration')
         hold on
+        
+        t_OB_declare = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_declare = table(t_OB_declare, frequency);
+        
+        hist_fname = ['t_declare_hist_',...
+                      char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_declare, [output_dir, hist_fname])
         
                                     
     end
@@ -394,10 +493,33 @@ for i = 1:size(testing_strategies, 2)
         
         t_first_detection = output_linelist_ij.t_first_detection(is_outbreak);   
         
+        
+        % output summary statistics. 
+        t_first_case_q50 = quantile(t_first_detection, 0.5);
+        t_first_case_q90 = quantile(t_first_detection, 0.9);
+        
+        scenario_label_ij = ...
+            strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        summary_stats_q50([scenario_label_ij], ["t_first_case_q50"]) = {t_first_case_q50};
+        summary_stats_q90([scenario_label_ij], ["t_first_case_q90"]) = {t_first_case_q90};
+        
         figure(i + size(testing_strategies, 2)*6)
-        histogram(t_first_detection, 'BinEdges', [1:2:90])
-        ylabel('delay until first detected case')
+        d = 2;
+        h = histogram(t_first_detection, 'BinEdges', [1:d:90],...
+            'normalization', 'probability');
+        xlabel('delay until first detected case')
         hold on
+        
+        t_first_case = h.BinEdges(2:end)-(d/2);
+        frequency = h.Values;
+        
+        hist_table_detect = table(t_first_case, frequency);
+        
+        hist_fname = ['t_declare_hist_',...
+                      char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
+        
+        writetable(hist_table_detect, [output_dir, hist_fname])
         
                                     
     end
@@ -412,3 +534,8 @@ for i = 1:size(testing_strategies, 2)
         legend(Legend) 
     end
 end
+
+%finally, print table of quantiles: 
+
+writetable(summary_stats_q50, [output_dir, 'summary_stats_q50.csv'],'WriteRowNames',true)   
+writetable(summary_stats_q90, [output_dir, 'summary_stats_q90.csv'],'WriteRowNames',true)   
