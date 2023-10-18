@@ -29,25 +29,29 @@ lockdown_compliance_unmitigated = ["0.0"];
 % time to outbreak declaration
 % time to first case detection
 
-VarNames_q50 = {'cum_I_q50',...
+VarNames_q50 = {
+            'p_outbreak',...
+            'cum_I_q50',...
             'OB_duration_q50',...
             'peak_FTE_def_q50',...
             'cum_Res_Iso_q50',...
             't_declare_q50',...
             't_first_case_q50'};
         
-VarNames_q90 = {'cum_I_q90',...
+VarNames_q90 = {
+            'p_outbreak',...
+            'cum_I_q90',...
             'OB_duration_q90',...
             'peak_FTE_def_q90',...
             'cum_Res_Iso_q90',...
             't_declare_q90',...
             't_first_case_q90'};
         
-VarTypes = {'double','double','double','double','double','double'};
+VarTypes = {'double', 'double','double','double','double','double','double'};
 
 %set up row names corresponding to each scenario: 
 [A,B] = meshgrid(testing_strategies,lockdown_compliance_OB);
-c=cat(2,A',B');
+c=cat(2,A,B);
 d=reshape(c,[],2);
 d = strcat(d(:, 1), '_LD_' ,d(:, 2));
 
@@ -96,32 +100,42 @@ for i = 1:size(testing_strategies, 2)
         I_tot_OB = output_linelist_ij.I_tot_res(is_outbreak) +...
                    output_linelist_ij.I_tot_staff(is_outbreak);
                
+       
+               
   
         if strcmp(strat_i, 'unmitigated')
-            I_tot = I_tot_All(I_tot_All > 80); %HACK: this just plots the big outbreaks (for comparison)
+           I_tot_OB = I_tot_All(I_tot_All > 80); %HACK: this just plots the big outbreaks (for comparison)
+           I_tot = I_tot_All;
         else
             I_tot = I_tot_OB;
+            
         end
         
-        cum_I_q50 = quantile(I_tot, 0.5);
-        cum_I_q90 = quantile(I_tot, 0.9);
+        p_outbreak = numel(I_tot_OB) / numel(I_tot_All);
+        
+        cum_I_q50 = quantile(I_tot_OB, 0.5);
+        cum_I_q90 = quantile(I_tot_OB, 0.9);
         
         scenario_label_ij = ...
             strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
+        
+        
+        summary_stats_q50([scenario_label_ij], ["p_outbreak"]) = {p_outbreak};
+        summary_stats_q90([scenario_label_ij], ["p_outbreak"]) = {p_outbreak};
         
         summary_stats_q50([scenario_label_ij], ["cum_I_q50"]) = {cum_I_q50};
         summary_stats_q90([scenario_label_ij], ["cum_I_q90"]) = {cum_I_q90};
         
         figure(i)
-        d = 10;
-        h = histogram(I_tot, 'BinEdges', [1:d:210], 'normalization', 'probability');
+        d = 5;
+        h = histogram(I_tot, 'BinEdges', [0:d:210], 'normalization', 'probability');
         xlabel('cumulative cases')
         hold on
         
-        I_tot = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        I_cum = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
-        hist_table_I_tot = table(I_tot, frequency);
+        hist_table_I_tot = table(I_cum, frequency);
         
         hist_fname = ['I_tot_hist_',...
             char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
@@ -187,12 +201,12 @@ for i = 1:size(testing_strategies, 2)
         
         figure(i + size(testing_strategies, 2)*2)
         d = 5;
-        h = histogram(OB_duration, 'BinEdges', [1:d:100], 'normalization', 'probability');
+        h = histogram(OB_duration, 'BinEdges', [0:d:100], 'normalization', 'probability');
         xlabel('outbreak duration')
         hold on
         
-        duration = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        duration = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
         hist_table_duration = table(duration, frequency);
         
@@ -309,12 +323,12 @@ for i = 1:size(testing_strategies, 2)
         
         figure(i + size(testing_strategies, 2)*3)
         d = 2;
-        h = histogram(peak_FTE_def, 'BinEdges', [1:d:50], 'normalization', 'probability');
+        h = histogram(peak_FTE_def, 'BinEdges', [0:d:50], 'normalization', 'probability');
         xlabel('peak FTE deficit')
         hold on
         
-        max_FTE_def = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        max_FTE_def = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
         hist_table_FTE = table(max_FTE_def, frequency);
         
@@ -374,15 +388,15 @@ for i = 1:size(testing_strategies, 2)
         
         figure(i + size(testing_strategies, 2)*4)
         d = 5;
-        h = histogram(cum_Res_Iso, 'BinEdges', [1:d:90],...
+        h = histogram(cum_Res_Iso, 'BinEdges', [0:d:90],...
             'normalization', 'probability');
         xlabel('total isolated residents (detected)')
         hold on
         
-        tot_Res_Iso = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        tot_Res_Iso = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
-        hist_table_Iso = table(max_FTE_def, frequency);
+        hist_table_Iso = table(tot_Res_Iso, frequency);
         
         hist_fname = ['Iso_hist_',...
                       char(strrep(scenario_label_ij, '.', 'p')), '.csv'];
@@ -440,13 +454,13 @@ for i = 1:size(testing_strategies, 2)
         
         figure(i + size(testing_strategies, 2)*5)
         d = 2;
-        h = histogram(t_outbreak_declared, 'BinEdges', [1:d:90],...
+        h = histogram(t_outbreak_declared, 'BinEdges', [0:d:90],...
             'normalization', 'probability');
         xlabel('delay until outbreak declaration')
         hold on
         
-        t_OB_declare = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        t_OB_declare = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
         hist_table_declare = table(t_OB_declare, frequency);
         
@@ -506,13 +520,13 @@ for i = 1:size(testing_strategies, 2)
         
         figure(i + size(testing_strategies, 2)*6)
         d = 2;
-        h = histogram(t_first_detection, 'BinEdges', [1:d:90],...
+        h = histogram(t_first_detection, 'BinEdges', [0:d:90],...
             'normalization', 'probability');
         xlabel('delay until first detected case')
         hold on
         
-        t_first_case = h.BinEdges(2:end)-(d/2);
-        frequency = h.Values;
+        t_first_case = (h.BinEdges(1:end-1))';
+        frequency = (h.Values)';
         
         hist_table_detect = table(t_first_case, frequency);
         
