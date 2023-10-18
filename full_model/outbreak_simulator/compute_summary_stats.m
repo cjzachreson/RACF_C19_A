@@ -46,8 +46,8 @@ VarNames_q90 = {'cum_I_q90',...
 VarTypes = {'double','double','double','double','double','double'};
 
 %set up row names corresponding to each scenario: 
-[A, B] = meshgrid(testing_strategies,lockdown_compliance_OB);
-c=cat(2,A,B);
+[A,B] = meshgrid(testing_strategies,lockdown_compliance_OB);
+c=cat(2,A',B');
 d=reshape(c,[],2);
 d = strcat(d(:, 1), '_LD_' ,d(:, 2));
 
