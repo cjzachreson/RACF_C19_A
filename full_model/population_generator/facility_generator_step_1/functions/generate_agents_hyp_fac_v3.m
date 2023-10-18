@@ -73,12 +73,9 @@ end
 
 
 %% STEP 2: assign residents to rooms
-%P_same = 0.5;
 
-%STEP 3a: create rooms
+%STEP 2a: create rooms
 
-%create rooms - TODO: this for loop can be moved outside the while loop, and replaced
-%with a reinitialisation of the resident lists for each room.
 rooms = struct;
 
 sz = facility_info.residents_per_room;
@@ -94,7 +91,7 @@ for r = 1:n_rooms
 end
 
 
-% STEP 3b fill rooms with residents,
+% STEP 2b fill rooms with residents,
 % subject to room capacity. 
 res_id = 0;
 rm_id = 1;

@@ -1,0 +1,6 @@
+id,n_residents,n_staff,residents_per_room,min_staff_per_room,min_rooms_per_staff
+1,90,120,5,5,5
+2,90,120,4,4,5
+3,90,120,3,3,5
+4,90,120,2,2,5
+5,90,120,1,1,5

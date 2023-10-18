@@ -1,50 +1,3 @@
-# version 6: running experiments with global efficacy modifier and variable neut distribution. 
-
-# version 5: included immunity from distribution AND, re-factored to run outbreak loop outside of main()
-
-# version 4: this version implements network rewiring based on room assignments. This 
-# more flexible approach will allow future modifications that implement dynamic surge rostering. 
-# in the current implementation, all this does is prevent furloughed staff from transmitting infection. 
-
-# 2022 09 28: 
-# stratified contact rate by needs level of residents. 
-# contact rate specified in setup file is for high-needs residents 
-# contact rate for regular-needs residents is 1/3 of that value 
-# same as the ratio of contact weight between workers and high-needs
-# vs. reg-needs residents. 
-
-# 2022 09 25 : including capacity to draw immunity states from distribution
-# rather than applying them deterministically from the input file. 
-
-# 2022 09 23 : adding control parameter sweep: 
-# delay between outbreak declaration and implementation of outbreak response
-# compliance with scheduled testing of workforce 
-
-
-# include("./header_RACF.jl")
-
-# include("./Setup_RACF_v9.jl")
-# import .Setup_RACF
-
-# include("./Networks_RACF_v9.jl")
-# import .Networks_RACF
-
-# include("./Diseases_RACF_v9.jl")
-# import .Diseases_RACF
-
-# include("./Agents_RACF_v9.jl")
-# import .Agents_RACF
-
-# include("./Facility_Structure_v9.jl")
-# import .Facility_Structure
-
-# include("./Outbreak_Response_RACF_v9.jl")
-# import .Outbreak_Response
-
-# include("./Transmission_Dynamics_v9.jl")
-# import .Transmission_Dynamics
-
-
 global NETWORK_TEST = false 
 
 # define the main function 
@@ -464,7 +417,7 @@ function main_R0()
     
     # list of facilitis to iterate through
     fac_list_dir = "$data_dir_L1\\$data_dir_L2"
-    fac_list_fname = "$fac_list_dir\\hypothetical_facility_characteristics.csv"
+    fac_list_fname = "$fac_list_dir\\hypothetical_facility_characteristics_v3.csv"
     fac_list = DataFrame(CSV.File(fac_list_fname, delim = ","))
     
     n_populations = size(fac_list, 1)
@@ -478,7 +431,7 @@ function main_R0()
             immunity_label = "immunity_off"
         end
 
-        for i in 3:3 #facility 3 has no high-needs residents and no shared rooms. 
+        for i in 5:5 #facility 3 has no shared rooms. 
 
             fac_i = i 
             fac_label = "facID_$(fac_list.service_id[fac_i])_hyp"

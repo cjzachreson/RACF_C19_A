@@ -407,7 +407,7 @@ end
 # specific to the scenarios involving SARS-CoV-2
 
 
-
+#efficacy against acquisition of infection 
 function Efficacy_infection_Default(ln_neuts::Float64)::Float64
 
     c50 = -1.6
@@ -419,6 +419,7 @@ function Efficacy_infection_Default(ln_neuts::Float64)::Float64
     return eff 
 end
 
+# efficacy against onward transmission, given infection
 function Efficacy_OT_Default(ln_neuts::Float64)::Float64
     
 
@@ -427,6 +428,7 @@ function Efficacy_OT_Default(ln_neuts::Float64)::Float64
     return eff 
 end
 
+#efficacy against symptoms, given infection
 function Efficacy_Symptoms_Default(ln_neuts::Float64)::Float64
 
 
@@ -435,6 +437,7 @@ function Efficacy_Symptoms_Default(ln_neuts::Float64)::Float64
     return eff 
 end
 
+# efficacy against death, given infection
 function Efficacy_Death_Default(ln_neuts::Float64)::Float64
 
     eff = 0.0
