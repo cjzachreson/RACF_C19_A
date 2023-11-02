@@ -5,14 +5,15 @@ close all
 
 root_dir = pwd();
         
-data_dir = [root_dir, '\output_v9_OB_test\facID_10000003_hyp\'];
+data_dir = [root_dir, '\output_v9_OB_LD_only\facID_10000003_hyp\'];
 
-output_dir = [root_dir, '\analysis\output_summary_stats\'];
+output_dir = [root_dir, '\analysis\output_summary_stats\LD_only\'];
+if ~isfolder(output_dir)
+    mkdir(output_dir)
+end
 
-testing_strategies = ["asymp_testing",...
-                      "asymp_testing_OB_only",...
-                      "no_asymp_testing",...
-                      "unmitigated"];
+
+testing_strategies = ["lockdown_only"];
 
            
 lockdown_compliance_OB = ["0.9", "0.5", "0.0"] %["0.9", "0.75", "0.5", "0.25", "0.0"];
@@ -525,7 +526,7 @@ for i = 1:size(testing_strategies, 2)
         xlabel('delay until first detected case')
         hold on
         
-        t_first_case = (h.BinEdges(2:end)-(d/2))';
+        t_first_case = (h.BinEdges(1:end-1))';
         frequency = (h.Values)';
         
         hist_table_detect = table(t_first_case, frequency);
