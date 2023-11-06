@@ -345,7 +345,7 @@ function isolate_residents!(agents::Agents_RACF.Agents_T,
 
     for id in ids_to_isolate
         a = agents.residents[id]
-        #isolate resident (if RESIDENT_CASE_ISOLATION flag is true)
+        #isolate resident
         isolate_resident!(a, t, isolated_residents)
     end
 
@@ -373,7 +373,7 @@ function update_absentees!(agents::Agents_RACF.Agents_T,
         end
     end
 
-    # add back to rooms (I know, I know, assignment of a is redundant...)
+    # add back to rooms 
     for id_i in agents_to_reinstate
 
         a = agents.All[id_i]
@@ -389,7 +389,10 @@ function update_absentees!(agents::Agents_RACF.Agents_T,
                 if !in(rm_id, room_ids_to_update)
                     push!(room_ids_to_update, rm_id)
                 end
-                room.N_workers_t -= 1
+                room.N_workers_t -= 1 
+                #2023 11 03 : this looks like a bug - test this. (should be +=)
+                # NOTE: the above is a bug, but the value is only used for bookkeeping 
+                # and does not currently have a function.  
             end
         end 
 

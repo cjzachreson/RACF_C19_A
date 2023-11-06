@@ -139,7 +139,6 @@ function run_OB!(config::Setup_RACF.Config_T,
         #note - this will completely replace the existing contact list 
 
         # adjust pairwise weights based on model-specific bias 
-        # NOTE: this involves GLOBAL control parameters. 
         # NOTE: adjusting weights in agent neighbour lists 
         # also adjusts the weights in N_lists (referencing)
         Agents_RACF.pairwise_weights!(agents, config)
