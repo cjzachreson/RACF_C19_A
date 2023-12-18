@@ -5,7 +5,7 @@ close all
 % specify input and output locations
 
 input_date_label = '2023_09_22'
-output_date_label = '2023_09_22'
+output_date_label = '2023_12_16'
 
 current_dir = pwd();
 
@@ -105,119 +105,6 @@ for i = 1:n_fac
     
     
 end
-
-
-%% Helper functions
-function E_keys = STD_2_unique_keys(E_list, sep)
-
-%separator
-E_keys = {};
-for e_i = 1:size(E_list, 1)
-    
-    e = E_list(e_i, :);
-    
-    key_i = [num2str(e(1)), sep, num2str(e(2)), sep, num2str(e(3))];
-    
-    E_keys{e_i, 1} = key_i;
-    
-end
-
-E_keys = unique(E_keys);
-
-end
-
-function STD_W_map = Multigraph_2_weightmap(STD_keys, E_list_mgraph, sep)
-
-STD_W_map = containers.Map(STD_keys, zeros(size(STD_keys, 1), 1));
-
-for e_i = 1:size(E_list_mgraph, 1)
-    
-    e = E_list_mgraph(e_i, :);
-    
-    key_i = [num2str(e(1)), sep, num2str(e(2)), sep, num2str(e(3))];
-    
-    weight_e_i = e(4);
-    
-    STD_W_map(key_i) = STD_W_map(key_i) + weight_e_i;
-    
-end
-
-end
-
-function W_E_list = STD_weightmap_2_Elist(STD_Wmap, sep)
-
-key_set = keys(STD_Wmap)';
-
-W_E_list = NaN(size(key_set, 1), 4);
-
-for k_i = 1:size(key_set, 1)
-    
-    key_i = key_set{k_i};
-    
-    w_i = STD_Wmap(key_i);
-    
-    STD = strrep(key_i, sep, ',');
-    
-    ST_num = eval([ '[' STD ']' ]);
-    
-    W_E_list(k_i, :) = [ST_num, w_i];
-    
-end
-
-W_E_list = sortrows(W_E_list, [1,3,2]);
-
-end
-
-function NList = WNet_2_NList(WE_list)
-
-S_list = unique(WE_list(:, 1));
-
-NList = cell([numel(S_list), 2]);
-
-for s_i = 1:numel(S_list)
-    
-    source_id = S_list(s_i);
-    NList{s_i, 1} = source_id;
-    
-    target_ids = WE_list( WE_list(:, 1) == source_id, 2);
-    target_days = WE_list(WE_list(:, 1) == source_id, 3);
-    target_weights = WE_list(WE_list(:, 1) == source_id, 4);
-    NList{s_i, 2} = [target_ids, target_days, target_weights];
-    
-end
-
-end
-
-
-function struct_out = struct_cat(s1, s2)
-
-c1 = struct2cell(s1);
-c2 = struct2cell(s2);
-
-fields_s1 = fieldnames(s1);
-fields_s2 = fieldnames(s2);
-
-fields_12 = {fields_s1{:}, fields_s2{:}}';
-
-n = size(s1, 2);
-
-for i = 1:n
-    
-    c12 = {c1{:, :, i}, c2{:, i}}';
-    
-    if i == 1
-    
-    struct_out = cell2struct(c12, fields_12);
-    
-    else
-        
-        struct_out(i) = cell2struct(c12, fields_12);
-        
-    end
-
-end
-end
-
 
 
 

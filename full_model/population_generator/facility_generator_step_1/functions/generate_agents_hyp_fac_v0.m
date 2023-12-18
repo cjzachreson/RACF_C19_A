@@ -195,10 +195,6 @@ while discrepancy >= tolerance
         end
     end
     
-%     if n_check < n
-%     
-%         'stop'
-%     end
         
     % STEP 3b assign residents to rooms
     

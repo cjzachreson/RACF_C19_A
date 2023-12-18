@@ -49,7 +49,8 @@ for i = 1:n_fac
     i_num_staff = fac_i.n_staff;
     
     
-    [i_residents_fac, i_staff_med_fac, i_staff_gen_fac, i_rooms_fac  ]  = generate_agents_hyp_fac_v0(i_num_residents, i_num_staff, i_facility_info, seed);
+    [i_residents_fac, i_staff_med_fac, i_staff_gen_fac, i_rooms_fac  ]  = ...
+        generate_agents_hyp_fac_v0(i_num_residents, i_num_staff, i_facility_info, seed);
     
     % add outbreak id and key to agent and room structures before writing (for final linking of data):
     n_res = size(i_residents_fac, 2);
