@@ -1,7 +1,13 @@
- 
+ % Author: Cameron Zachreson
+% Institution: The University of Melbourne
+% Simulation code acompanying the manuscript entitled: 
+% "A model-based assessment of social isolation practices for COVID-19 outbreak response in residential care facilities"
+% Date released: Dec. 18, 2023
 
 clear all
 close all
+
+addpath([pwd(), '\functions'])
 
 %set rng seed
 seed = 1;
@@ -10,13 +16,14 @@ seed = 1;
 date_label = '2023_08_02';
 
 
-facility_data_fname = ['facility_characteristics\hypothetical_facility_characteristics.csv'];
+facility_data_fname = ['input\facility_characteristics\'...
+                       'hypothetical_facility_characteristics.csv'];
 
 facility_info = readtable(facility_data_fname);
 
 %%output locations:
 
-output_dir = [pwd(), '\agents_Hypothetical_facilities'];
+output_dir = [pwd(), '\output\agents_Hypothetical_facilities\release_test\'];
 
 
 %% specify input sets:

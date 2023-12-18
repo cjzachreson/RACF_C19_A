@@ -1,3 +1,9 @@
+% Author: Cameron Zachreson
+% Institution: The University of Melbourne
+% Simulation code acompanying the manuscript entitled: 
+% "A model-based assessment of social isolation practices for COVID-19 outbreak response in residential care facilities"
+% Date released: Dec. 18, 2023
+
 function [workers_out, rooms_out] = assign_staff_to_rooms(worker_struct, rooms, staff_per_room, staff_type, random_rm_order_flag )
 
 % CZ: 2022 09 01, sometimes, when there are many staff, it's possible to

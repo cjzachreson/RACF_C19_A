@@ -1,48 +1,9 @@
-# version 6: running experiments with global efficacy modifier and variable neut distribution. 
+# Author: Cameron Zachreson
+# Institution: The University of Melbourne
+# Simulation code acompanying the manuscript entitled: 
+# "A model-based assessment of social isolation practices for COVID-19 outbreak response in residential care facilities"
+# Date released: Dec. 18, 2023
 
-# version 5: included immunity from distribution AND, re-factored to run outbreak loop outside of main()
-
-# version 4: this version implements network rewiring based on room assignments. This 
-# more flexible approach will allow future modifications that implement dynamic surge rostering. 
-# in the current implementation, all this does is prevent furloughed staff from transmitting infection. 
-
-# 2022 09 28: 
-# stratified contact rate by needs level of residents. 
-# contact rate specified in setup file is for high-needs residents 
-# contact rate for regular-needs residents is 1/3 of that value 
-# same as the ratio of contact weight between workers and high-needs
-# vs. reg-needs residents. 
-
-# 2022 09 25 : including capacity to draw immunity states from distribution
-# rather than applying them deterministically from the input file. 
-
-# 2022 09 23 : adding control parameter sweep: 
-# delay between outbreak declaration and implementation of outbreak response
-# compliance with scheduled testing of workforce 
-
-
-# include("./header_RACF.jl")
-
-# include("./Setup_RACF_v9.jl")
-# import .Setup_RACF
-
-# include("./Networks_RACF_v9.jl")
-# import .Networks_RACF
-
-# include("./Diseases_RACF_v9.jl")
-# import .Diseases_RACF
-
-# include("./Agents_RACF_v9.jl")
-# import .Agents_RACF
-
-# include("./Facility_Structure_v9.jl")
-# import .Facility_Structure
-
-# include("./Outbreak_Response_RACF_v9.jl")
-# import .Outbreak_Response
-
-# include("./Transmission_Dynamics_v9.jl")
-# import .Transmission_Dynamics
 
 
 global NETWORK_TEST = false 

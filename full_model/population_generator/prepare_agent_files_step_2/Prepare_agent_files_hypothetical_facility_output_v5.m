@@ -4,23 +4,23 @@ close all
 
 % specify input and output locations
 
-input_date_label = '2023_08_02'
-output_date_label = '2023_12_16'
+input_date_label = 'release_test\2023_08_02'
+output_date_label = 'release_test\2023_12_18'
 
 current_dir = pwd();
 
 %locate directory with synthetic population info: 
 cd('../')
 pop_gen_dir = pwd();
-cd('./network_generator_step_2')
+cd('./prepare_agent_files_step_2')
 
-input_dirname = [pop_gen_dir,'\facility_generator_step_1\',...
+input_dirname = [pop_gen_dir,'\facility_generator_step_1\output\',...
                  'agents_Hypothetical_facilities\' input_date_label];
 
-output_dirname = [pwd() '\agents_model_ready\' output_date_label];
+output_dirname = [pwd() '\output\agents_model_ready\' output_date_label];
 
 fac_list_dirname = [pop_gen_dir, ...
-                    '\facility_generator_step_1\facility_characteristics'];
+                    '\facility_generator_step_1\input\facility_characteristics'];
                 
 fac_list_fname = [fac_list_dirname, '\hypothetical_facility_characteristics.csv'];
 fac_list = readtable(fac_list_fname);

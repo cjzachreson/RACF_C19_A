@@ -1,26 +1,32 @@
 
+% Author: Cameron Zachreson
+% Institution: The University of Melbourne
+% Simulation code acompanying the manuscript entitled: 
+% "A model-based assessment of social isolation practices for COVID-19 outbreak response in residential care facilities"
+% Date released: Dec. 18, 2023
+
 clear all
 close all
 
 % specify input and output locations
 
-input_date_label = '2023_09_22'
-output_date_label = '2023_12_16'
+input_date_label = 'release_test\2023_09_22'
+output_date_label = 'release_test\2023_12_16'
 
 current_dir = pwd();
 
 %locate directory with synthetic population info: 
 cd('../')
 pop_gen_dir = pwd();
-cd('./network_generator_step_2')
+cd('./prepare_agent_files_step_2')
 
-input_dirname = [pop_gen_dir,'\facility_generator_step_1\',...
+input_dirname = [pop_gen_dir,'\facility_generator_step_1\output\',...
                  'agents_Homogeneous_test_pops\' input_date_label];
 
-output_dirname = [pwd() '\agents_model_ready\' output_date_label];
+output_dirname = [pwd() '\output\agents_model_ready\' output_date_label];
 
 fac_list_dirname = [pop_gen_dir, ...
-                    '\facility_generator_step_1\facility_characteristics'];
+                    '\facility_generator_step_1\input\facility_characteristics'];
 fac_list_fname = [fac_list_dirname, '\homogeneous_facility_characteristics.csv'];
 fac_list = readtable(fac_list_fname);
 

@@ -1,4 +1,9 @@
-#include("./Main_RACF_OB_v9.jl")
+# Author: Cameron Zachreson
+# Institution: The University of Melbourne
+# Simulation code acompanying the manuscript entitled: 
+# "A model-based assessment of social isolation practices for COVID-19 outbreak response in residential care facilities"
+# Date released: Dec. 18, 2023
+
 
 include("./header_RACF.jl")
 
