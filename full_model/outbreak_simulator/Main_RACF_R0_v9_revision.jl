@@ -385,8 +385,8 @@ function run_R0!(config::Setup_RACF.Config_T,
 
     println("avg. secondary cases: $(mean(tot_transmissions))")
 
-    output_fname = "$(output_dirname)\\output_summary.csv"
-    output_linelist_fname = "$(output_dirname)\\output_linelist.csv"
+    output_fname = joinpath("$(output_dirname)", "output_summary.csv")
+    output_linelist_fname = joinpath("$(output_dirname)", "output_linelist.csv")
 
     output = DataFrame(secondary_cases_tot = tot_transmissions)
 
