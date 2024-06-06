@@ -359,7 +359,6 @@ function isolate_residents!(agents::Agents_RACF.Agents_T,
 end
 
 
-
 function update_absentees!(agents::Agents_RACF.Agents_T, 
                            removal_period::Float64, 
                            removed_agents::Dict{Int64, Float64}, 
