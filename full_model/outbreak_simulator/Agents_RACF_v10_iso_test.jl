@@ -584,6 +584,9 @@ function fill_E_lists_all!(elist_t::Networks_RACF.E_list_temporal_T,
 end
 
 
+
+
+
 function compute_total_weight_d(a::Agent_T, d::Int64)::Float64
 
     w = 0.0
@@ -653,6 +656,64 @@ function select_random_agents_by_weight(A::Agents_T, config::Setup_RACF.Config_T
     return id_rand
 
 end
+
+
+#### adjusting index case sampling for lambda res
+
+function compute_total_weight_d_lambda_res(a::Agent_T, d::Int64, config::Setup_RACF.Config_T)
+    w = 0.0
+    for c in a.contacts[d]
+        w += c.weight
+    end
+    if is_resident(a)
+
+        w += config.contact_rate_per_resident_per_day * config.w_res_diff_room
+
+    end
+    return w 
+end
+
+function compute_total_weight_lambda_res(a::Agent_T, config::Setup_RACF.Config_T)::Float64
+    w_tot = 0.0
+    for (d, c) in a.contacts
+        w_d = compute_total_weight_d_lambda_res(a, d, config)
+        w_tot += w_d
+    end
+    return w_tot
+end
+
+function sum_all_weights_lambda_res(A::Agents_T, config::Setup_RACF.Config_T)::Float64
+    w_TOT = 0.0
+    for (id, a) in A.All
+        w_TOT += compute_total_weight_lambda_res(a, config)
+    end
+    return w_TOT 
+end
+
+
+function compute_weight_fraction_lambda_res(A::Agents_T, config::Setup_RACF.Config_T)::Tuple{Vector{Int64}, Vector{Float64}}
+    id_vec = Vector{Int64}()
+    weight_vec = Vector{Float64}()
+    w_tot = sum_all_weights_lambda_res(A, config) 
+    for (id, a) in A.All
+        w_a = compute_total_weight_lambda_res(a, config)
+        frac = w_a / w_tot
+        push!(id_vec, id)
+        push!(weight_vec, frac)
+    end
+    return id_vec, weight_vec
+end
+
+function select_random_agents_by_weight_lambda_res(A::Agents_T, config::Setup_RACF.Config_T, n::Int64)::Vector{Int64}
+    id_vec, weight_vec = compute_weight_fraction_lambda_res(A, config)
+    id_rand = sample(config.rng_infections, id_vec, Weights(weight_vec), n)
+    return id_rand
+end
+
+
+######
+
+
 
 function select_random_agents_uniform(A::Agents_T, config::Setup_RACF.Config_T, n::Int64)::Vector{Int64}
 
