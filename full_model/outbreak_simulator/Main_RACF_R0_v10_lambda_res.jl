@@ -408,7 +408,7 @@ function main_R0()
 
     # loop through exemplars and run the simulations: 
 
-    output_dir_label = "output_v10_R0_bkg_contact_rate"
+    output_dir_label = "output_v10_R0_bkg_contact_rate_fine"
 
     output_dir_L1 = "" #placeholder
 
@@ -416,7 +416,7 @@ function main_R0()
     
     #vaccine-acquired immunity: 
     immunity_states = Bool[false]
-    transmission_scalers = collect(0.025:0.025:0.5)
+    transmission_scalers = collect(0.01:0.005:0.2)
     bkg_contact_rates = [3.0, 6.0, 10.0, 20.0, 30.0]
     
     n_instances_tot = 1000 # how many instances of the primary case simulation
