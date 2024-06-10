@@ -725,7 +725,7 @@ function main_OB()
 
 
 
-    n_outbreaks_tot = 10#1000 # how many 'declared' outbreaks to simulate before terminating each run loop
+    n_outbreaks_tot = 1000 # how many 'declared' outbreaks to simulate before terminating each run loop
     # for nice distributions, 1000 is a good number (takes about 1hr per sceneario)
     n_instances_tot = 10000# how man 'instances' to run if detection is turned off. 
     n = 0
