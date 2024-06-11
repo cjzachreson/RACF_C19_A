@@ -155,13 +155,17 @@ for i = 1:size(testing_strategies, 2)
     data_dir_i = fullfile(strat_i);
 
    
-    for r_j = 1:size(R0)
+    fig_id = 0;
+
+    for r_j = 1:size(R0, 2)
 
         R0_j = R0(r_j)
 
         data_dir_ij = fullfile(data_dir_i, ['R0_', strrep(char(R0_j), '.', 'p')])
 
-        for cr_k = 1:size(bkgCR)
+        for cr_k = 1:size(bkgCR, 2)
+
+            fig_id = fig_id + 1;
     
             CR_k = bkgCR(cr_k);
 
@@ -219,36 +223,49 @@ for i = 1:size(testing_strategies, 2)
                 summary_stats_q50([scenario_label], ["cum_I_q50"]) = {cum_I_q50};
                 summary_stats_q90([scenario_label], ["cum_I_q90"]) = {cum_I_q90};
                 
-                figure(i)
+                figure(fig_id)
                 d = 5;
                 h = histogram(I_tot, 'BinEdges', [0:d:210], 'normalization', 'probability');
                 xlabel('cumulative cases')
+ 
+                % add an appropriate title 
+                title(strcat("R0: ", R0_j, ", ", "CR: ", CR_k ))
+
                 hold on
                 
                 I_cum = (h.BinEdges(1:end-1))';
                 frequency = (h.Values)';
-                
+
                 hist_table_I_tot = table(I_cum, frequency);
                 
                 hist_fname = ['I_tot_hist_',...
                     char(strrep(scenario_label, '.', 'p')), '.csv'];
                 
-                writetable(hist_table_I_tot, [output_dir, hist_fname])
+                %writetable(hist_table_I_tot, [output_dir, hist_fname])
                 
                 
                                             
             end
 
+            it = 0
+            for i = 1:size(lockdown_compliance, 2)
+                it = it + 1;
+                LD_j = strrep(num2str(lockdown_compliance(i)), '.', 'p');
+                Legend{it} = ['LD: ' strrep(LD_j, 'p', '.')];
+            end
+            legend(Legend) 
+
+
         end
+
+
+    
+    
     end
     
     Legend = cell(1, 1);
     
-    for j = 1:size(lockdown_compliance, 2)
-        LD_j = strrep(num2str(lockdown_compliance(j)), '.', 'p');
-        Legend{j} = [strrep(strat_i, '_', ' ') ',  LD: ' strrep(LD_j, 'p', '.')];
-    end
-    legend(Legend) 
+
 end
 
 
