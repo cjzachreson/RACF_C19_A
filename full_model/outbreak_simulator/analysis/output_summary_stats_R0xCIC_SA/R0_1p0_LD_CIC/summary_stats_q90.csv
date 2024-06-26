@@ -1,0 +1,4 @@
+Row,R0,lambda,p_outbreak,cum_I_q90,OB_duration_q90,peak_FTE_def_q90,cum_Res_Iso_q90,t_declare_q90,t_first_case_q90
+R0_1.0_CIC_0.75_LD_CIC,1,3,0.053248136315229,32,18,7.6,15,30.1,14.1
+R0_1.0_CIC_0.5_LD_CIC,1,3,0.0570027931368637,34,22,7.6,17,30.1,14.1
+R0_1.0_CIC_0.25_LD_CIC,1,3,0.061980909879757,38,27,7.4,21,30.1,14.1

@@ -1,0 +1,4 @@
+Row,R0,lambda,p_outbreak,cum_I_q50,OB_duration_q50,peak_FTE_def_q50,cum_Res_Iso_q50,t_declare_q50,t_first_case_q50
+R0_1.5_CIC_0.75_LD_CIC,1.5,3,0.0973046608932568,22,13,4.2,10,16.1,8.1
+R0_1.5_CIC_0.5_LD_CIC,1.5,3,0.102891243955139,24,15,4.2,11,16.1,8.1
+R0_1.5_CIC_0.25_LD_CIC,1.5,3,0.109505037231713,26,18,3.8,14,16.1,8.1
