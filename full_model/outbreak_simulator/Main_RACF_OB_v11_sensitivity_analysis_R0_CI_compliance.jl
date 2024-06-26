@@ -754,7 +754,7 @@ function main_OB()
         return
     end
 
-    output_dir_L1 = joinpath(pwd(),  "output_v11_OB_SA_R0", "$facility_label")
+    output_dir_L1 = joinpath(pwd(),  "output_v11_OB_SA_R0_CIC", "$facility_label")
 
 
 
@@ -788,7 +788,7 @@ function main_OB()
                 bkg_CR_label = "bkgCR_$bkg_CR_str"
                 tscale_str = replace("$tscale", "."=> "p")
                 tscale_label = "tscale_$tscale_str"
-                CIC_str = replace("$CI_compliance", ".", "p")
+                CIC_str = replace("$CI_compliance", "." => "p")
                 CIC_label = "CI_$CIC_str"
 
 
