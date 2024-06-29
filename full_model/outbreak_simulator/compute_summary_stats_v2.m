@@ -164,6 +164,9 @@ for i = 1:size(testing_strategies, 2)
         % time of first case detection
         t_first_detection = output_linelist_ij.t_first_detection(is_outbreak);  
 
+        % peak FTE deficit 
+        peak_FTE_def = output_linelist_ij.FTE_def_max(is_outbreak); 
+
 
         %summary stats
 
@@ -186,6 +189,10 @@ for i = 1:size(testing_strategies, 2)
         t_first_case_q50 = quantile(t_first_detection, 0.5);
         t_first_case_q90 = quantile(t_first_detection, 0.9);
         t_first_case_IQR = quantile(t_first_detection, 0.75) - quantile(t_first_detection, 0.25);
+
+        peak_FTE_def_q50 = quantile(peak_FTE_def, 0.5);
+        peak_FTE_def_q90 = quantile(peak_FTE_def, 0.9);
+        peak_FTE_def_IQR = quantile(peak_FTE_def_q90, 0.75) - quantile(peak_FTE_def, 0.25);
         
         scenario_label_ij = ...
             strcat(testing_strategies(i), '_LD_', lockdown_compliance(j));
@@ -213,6 +220,10 @@ for i = 1:size(testing_strategies, 2)
         summary_stats_q50([scenario_label_ij], ["t_first_case_q50"]) = {t_first_case_q50};
         summary_stats_q90([scenario_label_ij], ["t_first_case_q90"]) = {t_first_case_q90};      
         summary_stats_IQR([scenario_label_ij], ["t_first_case_IQR"]) = {t_first_case_IQR}; 
+
+        summary_stats_q50([scenario_label_ij], ["peak_FTE_def_q50"]) = {peak_FTE_def_q50};
+        summary_stats_q90([scenario_label_ij], ["peak_FTE_def_q90"]) = {peak_FTE_def_q90};      
+        summary_stats_IQR([scenario_label_ij], ["peak_FTE_def_IQR"]) = {peak_FTE_def_IQR}; 
         
                                 
     end
